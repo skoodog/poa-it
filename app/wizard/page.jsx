@@ -342,9 +342,9 @@ function StepRouter({ state, setState }) {
 }
 
 /**
- * Placeholder shown when the user reaches a step that hasn't been built yet.
- * Currently fires after Step 2 (Principal) completes. Will be replaced with
- * Step 3 (Agent) in Phase 2b.
+ * Fallback shown if state.currentStep is corrupted or points to an unknown
+ * step. In normal flow this never renders — Step 9 (Waitlist) is the terminal
+ * step and handles its own success state inline.
  */
 function PhaseInProgressPlaceholder({ state, setState }) {
   function handleStartOver() {
