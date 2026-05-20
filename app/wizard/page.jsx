@@ -11,6 +11,8 @@ import { Step4a_Homestead } from "../../components/wizard/screens/Step4a_Homeste
 import { Step5_HotPowers } from "../../components/wizard/screens/Step5_HotPowers";
 import { Step6_EffectiveDate } from "../../components/wizard/screens/Step6_EffectiveDate";
 import { Step7_ExecutionMethod } from "../../components/wizard/screens/Step7_ExecutionMethod";
+import { Step8_Review } from "../../components/wizard/screens/Step8_Review";
+import { Step9_Waitlist } from "../../components/wizard/screens/Step9_Waitlist";
 import { ProgressIndicator } from "../../components/wizard/WizardShell";
 import { TOKENS, FONTS } from "../../components/wizard/shared/tokens";
 import {
@@ -309,6 +311,24 @@ function StepRouter({ state, setState }) {
     case "step7_execution_method":
       return (
         <Step7_ExecutionMethod
+          state={state}
+          setState={setState}
+          onBack={handleBack}
+          onContinue={handleContinue}
+        />
+      );
+    case "step8_review":
+      return (
+        <Step8_Review
+          state={state}
+          setState={setState}
+          onBack={handleBack}
+          onContinue={handleContinue}
+        />
+      );
+    case "step9_waitlist":
+      return (
+        <Step9_Waitlist
           state={state}
           setState={setState}
           onBack={handleBack}
