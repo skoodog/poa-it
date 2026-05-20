@@ -7,7 +7,7 @@ import { WizardShell } from "../WizardShell";
 import { StatutoryTooltip } from "../shared/StatutoryTooltip";
 import { WarningBanner } from "../shared/WarningBanner";
 import { getAllGeneralPowers } from "../../../lib/clauseLibrary/engine";
-import { updateState, markStepComplete } from "../../../lib/wizard/state";
+import { updateState, markStepComplete, getNextStep } from "../../../lib/wizard/state";
 import { audit } from "../../../lib/audit/logger";
 
 /**
@@ -85,7 +85,7 @@ export function Step4_Powers({ state, setState, onBack, onContinue }) {
         : Array.from(grantedSet).filter((p) => p !== "all_powers"),
       grantedCount,
     });
-    const next = markStepComplete(state, "step4_powers", "step4a_homestead");
+    const next = markStepComplete(state, "step4_powers", getNextStep({ ...state, currentStep: "step4_powers" }));
     setState(next);
     onContinue();
   }
