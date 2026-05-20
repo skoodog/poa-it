@@ -1,14 +1,19 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CheckCircle2, Code2, Database, FileText, ShieldCheck } from "lucide-react";
+import { CheckCircle2, ArrowRight } from "lucide-react";
 import { EligibilityGate } from "../../components/wizard/screens/EligibilityGate";
+import { Step1_DocumentType } from "../../components/wizard/screens/Step1_DocumentType";
+import { Step2_Principal } from "../../components/wizard/screens/Step2_Principal";
+import { ProgressIndicator } from "../../components/wizard/WizardShell";
 import { TOKENS, FONTS } from "../../components/wizard/shared/tokens";
 import {
   createInitialState,
   loadState,
   clearState,
+  updateState,
   WIZARD_STEPS,
+  getPreviousStep,
 } from "../../lib/wizard/state";
 import { getAuditLog, clearAuditLog } from "../../lib/audit/logger";
 
@@ -56,13 +61,6 @@ export default function WizardPage() {
     setState(createInitialState());
   }
 
-  function handleContinue() {
-    // For Phase 1, just scroll back to top so user sees the "next phase" placeholder
-    if (typeof window !== "undefined") {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
-  }
-
   if (!state) {
     return (
       <div
@@ -80,10 +78,6 @@ export default function WizardPage() {
       </div>
     );
   }
-
-  // After eligibility gate is completed, show Phase 1 "you've completed the
-  // tracer bullet" placeholder. Phase 2 will replace this with Step 1.
-  const eligibilityComplete = state.completedSteps.includes("eligibility_gate");
 
   return (
     <div
@@ -164,85 +158,15 @@ export default function WizardPage() {
         </div>
       </header>
 
-      {/* Progress indicator (placeholder for now — full version in Phase 2) */}
-      <div
-        style={{
-          background: TOKENS.PAPER_2,
-          borderBottom: `1px solid ${TOKENS.LINE}`,
-          padding: "12px 32px",
-        }}
-      >
-        <div
-          style={{
-            maxWidth: 880,
-            margin: "0 auto",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            fontSize: 11,
-            color: TOKENS.INK_40,
-            fontFamily: FONTS.MONO,
-            letterSpacing: "0.04em",
-          }}
-        >
-          {WIZARD_STEPS.filter((s) => !s.conditional).map((s, i, arr) => {
-            const isComplete = state.completedSteps.includes(s.id);
-            const isCurrent = state.currentStep === s.id;
-            return (
-              <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span
-                  style={{
-                    width: 18,
-                    height: 18,
-                    borderRadius: "50%",
-                    background: isComplete
-                      ? TOKENS.LIVE_GREEN
-                      : isCurrent
-                      ? TOKENS.INK
-                      : TOKENS.LINE,
-                    color: isComplete || isCurrent ? TOKENS.PAPER : TOKENS.INK_40,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 10,
-                    fontWeight: 700,
-                  }}
-                >
-                  {isComplete ? "✓" : i + 1}
-                </span>
-                <span
-                  style={{
-                    color: isCurrent ? TOKENS.INK : isComplete ? TOKENS.INK_60 : TOKENS.INK_40,
-                    fontWeight: isCurrent ? 600 : 500,
-                    textTransform: "uppercase",
-                  }}
-                >
-                  {s.label}
-                </span>
-                {i < arr.length - 1 && (
-                  <span
-                    style={{
-                      width: 16,
-                      height: 1,
-                      background: TOKENS.LINE,
-                      marginLeft: 4,
-                      marginRight: 4,
-                    }}
-                  />
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      {/* Progress indicator */}
+      <ProgressIndicator
+        currentStep={state.currentStep}
+        completedSteps={state.completedSteps}
+      />
 
       {/* Main content area */}
       <main>
-        {!eligibilityComplete ? (
-          <EligibilityGate state={state} setState={setState} onContinue={handleContinue} />
-        ) : (
-          <Phase1Complete state={state} onStartOver={handleStartOver} />
-        )}
+        <StepRouter state={state} setState={setState} />
       </main>
 
       {/* Debug panel — only shown with ?debug=true */}
@@ -288,10 +212,70 @@ export default function WizardPage() {
 }
 
 /**
- * Phase 1 completion placeholder.
- * Shown after eligibility gate is completed. Replaced by Step 1 in Phase 2.
+ * StepRouter — renders the current step's screen component.
+ *
+ * Each screen gets state + setState plus onBack/onContinue handlers that
+ * mutate state.currentStep. The router itself doesn't know about step
+ * ordering — it just renders whichever screen currentStep points to.
+ *
+ * If currentStep is past the last screen built in this phase, we render
+ * the "next phase coming" placeholder so the user sees a useful message
+ * instead of nothing.
  */
-function Phase1Complete({ state, onStartOver }) {
+function StepRouter({ state, setState }) {
+  function handleBack() {
+    const prevStep = getPreviousStep(state);
+    if (!prevStep) return;
+    setState(updateState(state, { currentStep: prevStep }));
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function handleContinue() {
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  switch (state.currentStep) {
+    case "eligibility_gate":
+      return <EligibilityGate state={state} setState={setState} onContinue={handleContinue} />;
+    case "step1_document_type":
+      return (
+        <Step1_DocumentType
+          state={state}
+          setState={setState}
+          onBack={handleBack}
+          onContinue={handleContinue}
+        />
+      );
+    case "step2_principal":
+      return (
+        <Step2_Principal
+          state={state}
+          setState={setState}
+          onBack={handleBack}
+          onContinue={handleContinue}
+        />
+      );
+    default:
+      // Any step ID past what's built in this phase falls through here.
+      return <PhaseInProgressPlaceholder state={state} setState={setState} />;
+  }
+}
+
+/**
+ * Placeholder shown when the user reaches a step that hasn't been built yet.
+ * Currently fires after Step 2 (Principal) completes. Will be replaced with
+ * Step 3 (Agent) in Phase 2b.
+ */
+function PhaseInProgressPlaceholder({ state, setState }) {
+  function handleStartOver() {
+    if (typeof window !== "undefined") {
+      if (!window.confirm("Reset wizard and clear all progress?")) return;
+    }
+    clearState();
+    clearAuditLog();
+    setState(createInitialState());
+  }
+
   return (
     <div style={{ maxWidth: 720, margin: "0 auto", padding: "48px 32px" }}>
       <div
@@ -319,7 +303,7 @@ function Phase1Complete({ state, onStartOver }) {
           }}
         >
           <CheckCircle2 size={12} strokeWidth={2.4} />
-          Eligibility passed
+          {state.completedSteps.length} steps complete
         </div>
 
         <h2
@@ -331,15 +315,15 @@ function Phase1Complete({ state, onStartOver }) {
             margin: "0 0 12px",
           }}
         >
-          You're eligible. Steps 2-9 are coming.
+          You've reached the edge of what's built so far.
         </h2>
 
         <p style={{ fontSize: 15, color: TOKENS.INK_60, lineHeight: 1.55, margin: "0 0 24px" }}>
-          Phase 1 of our wizard rebuild is complete. The substrate is in place — clause
-          library, state engine, audit logger, validator, shared components, and the
-          eligibility gate you just walked through. The remaining 8 wizard screens
-          (your information, your agent, powers, sensitive powers, effective date,
-          signing, review, waitlist) are being built in subsequent phases.
+          The next screens — your agent, the powers you're granting, sensitive
+          powers, effective date, signing method, review, and waitlist signup —
+          are being built in the next deploy. Your wizard answers are saved
+          locally and will pick up exactly where you left off when those screens
+          ship.
         </p>
 
         <div
@@ -348,7 +332,7 @@ function Phase1Complete({ state, onStartOver }) {
             border: `1px solid ${TOKENS.LINE}`,
             borderRadius: 10,
             padding: "20px 22px",
-            marginBottom: 24,
+            marginBottom: 20,
           }}
         >
           <div
@@ -360,103 +344,63 @@ function Phase1Complete({ state, onStartOver }) {
               textTransform: "uppercase",
               color: TOKENS.INK_40,
               fontWeight: 600,
-              marginBottom: 14,
+              marginBottom: 12,
             }}
           >
-            Phase 1 build — what's in place
+            What you completed
           </div>
-          <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 12 }}>
-            <SubstrateRow
-              icon={Database}
-              title="Clause library"
-              detail="All 14 Texas statutory powers, 5 hot powers, conditional clauses, statutory citations"
-              path="/lib/clauseLibrary/clauses.json"
-            />
-            <SubstrateRow
-              icon={Code2}
-              title="Engine + validator"
-              detail="Trigger DSL evaluator, scoped wizard rules, derived-state flag computation"
-              path="/lib/clauseLibrary/engine.js · /lib/wizard/validator.js"
-            />
-            <SubstrateRow
-              icon={FileText}
-              title="State + audit logger"
-              detail="LocalStorage persistence, append-only event log, PII scrubbing at write time"
-              path="/lib/wizard/state.js · /lib/audit/logger.js"
-            />
-            <SubstrateRow
-              icon={ShieldCheck}
-              title="Shared UI components"
-              detail="StatutoryTooltip, WarningBanner, Disclaimer, AcknowledgmentCheckbox, AttorneyReferralPrompt"
-              path="/components/wizard/shared/*"
-            />
+          <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
+            {state.completedSteps.map((stepId) => {
+              const step = WIZARD_STEPS.find((s) => s.id === stepId);
+              if (!step) return null;
+              return (
+                <li key={stepId} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, color: TOKENS.INK_60 }}>
+                  <CheckCircle2 size={14} strokeWidth={2} color={TOKENS.LIVE_GREEN} />
+                  <span>{step.label}</span>
+                </li>
+              );
+            })}
           </ul>
         </div>
 
-        <div
-          style={{
-            fontSize: 13,
-            color: TOKENS.INK_60,
-            padding: "14px 16px",
-            background: TOKENS.REF_BG,
-            border: `1px solid ${TOKENS.REF_BORDER}`,
-            borderRadius: 8,
-            lineHeight: 1.55,
-            marginBottom: 24,
-          }}
-        >
-          <strong style={{ color: TOKENS.REF_INK }}>For Rob:</strong> Open the
-          browser console to see the audit log entries from your eligibility-gate
-          walk-through. Each tooltip open, each answer change, each step completion
-          is recorded with timestamp and session ID. That's the evidentiary record
-          architecture — same shape as the production version will use, just
-          persisting to localStorage instead of a database.
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <a
+            href="/wizard?debug=true"
+            style={{
+              padding: "10px 18px",
+              fontSize: 13,
+              fontWeight: 500,
+              background: TOKENS.PAPER,
+              color: TOKENS.INK,
+              border: `1px solid ${TOKENS.LINE}`,
+              borderRadius: 6,
+              cursor: "pointer",
+              textDecoration: "none",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            View debug panel <ArrowRight size={12} strokeWidth={2.4} />
+          </a>
+          <button
+            onClick={handleStartOver}
+            style={{
+              padding: "10px 18px",
+              fontSize: 13,
+              fontWeight: 500,
+              background: "transparent",
+              color: TOKENS.INK_60,
+              border: "none",
+              cursor: "pointer",
+              textDecoration: "underline",
+            }}
+          >
+            Start over
+          </button>
         </div>
-
-        <button
-          onClick={onStartOver}
-          style={{
-            padding: "10px 20px",
-            fontSize: 13,
-            fontWeight: 500,
-            background: TOKENS.PAPER,
-            color: TOKENS.INK,
-            border: `1px solid ${TOKENS.LINE}`,
-            borderRadius: 6,
-            cursor: "pointer",
-          }}
-        >
-          Start the wizard over
-        </button>
       </div>
     </div>
-  );
-}
-
-function SubstrateRow({ icon: Icon, title, detail, path }) {
-  return (
-    <li style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-      <Icon size={16} strokeWidth={1.8} color={TOKENS.INK} style={{ flexShrink: 0, marginTop: 2 }} />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13.5, fontWeight: 600, color: TOKENS.INK, marginBottom: 2 }}>
-          {title}
-        </div>
-        <div style={{ fontSize: 12.5, color: TOKENS.INK_60, lineHeight: 1.5, marginBottom: 4 }}>
-          {detail}
-        </div>
-        <div
-          className="mono"
-          style={{
-            fontSize: 10.5,
-            fontFamily: FONTS.MONO,
-            color: TOKENS.INK_40,
-            letterSpacing: "0.01em",
-          }}
-        >
-          {path}
-        </div>
-      </div>
-    </li>
   );
 }
 
