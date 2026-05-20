@@ -1,0 +1,126 @@
+{
+  "$schema": "https://poa-it.com/schemas/wizard-rules-v1.json",
+  "version": "1.0.0",
+  "jurisdiction": "TX",
+
+  "wizard_decision_rules": [
+    {
+      "rule_id": "rule_eligibility_tx_resident",
+      "description": "Must be a Texas resident to use the wizard.",
+      "scope": ["eligibility_gate"],
+      "trigger": "is_texas_resident == false",
+      "action": "block_completion_with_message",
+      "wizard_message": "POA-IT currently serves Texas residents only. We're expanding to other states — join the waitlist and we'll notify you when your state is supported.",
+      "statutory_source": "Tex. Est. Code § 751.001 et seq.",
+      "severity": "blocker"
+    },
+    {
+      "rule_id": "rule_eligibility_adult",
+      "description": "Must be 18 or older.",
+      "scope": ["eligibility_gate"],
+      "trigger": "is_adult == false",
+      "action": "block_completion_with_message",
+      "wizard_message": "Texas law generally requires you to be 18 to create a power of attorney. Limited exceptions exist for emancipated minors — please contact support if that applies to you.",
+      "statutory_source": "Tex. Fam. Code § 31.001 (emancipation); general capacity law",
+      "severity": "blocker"
+    },
+    {
+      "rule_id": "rule_eligibility_for_self",
+      "description": "Must be creating for self, not on behalf of another person.",
+      "scope": ["eligibility_gate"],
+      "trigger": "for_self == false",
+      "action": "block_completion_with_message",
+      "wizard_message": "Powers of attorney must be created by the person granting authority. If you're assisting a family member, we'd love for them to create their own account — we've made the process accessible for older adults and people with mobility challenges.",
+      "severity": "blocker"
+    },
+    {
+      "rule_id": "rule_eligibility_no_guardianship",
+      "description": "Must not be under court-ordered guardianship of the estate.",
+      "scope": ["eligibility_gate"],
+      "trigger": "under_guardianship == true",
+      "action": "block_completion_with_message",
+      "wizard_message": "Texas law (Tex. Est. Code § 1101 et seq.) may limit your ability to grant a power of attorney while under guardianship of the estate. This situation requires individualized legal advice — beyond what our self-service software can offer. We'll route you to a Texas attorney through our Marketplace.",
+      "statutory_source": "Tex. Est. Code § 1101 et seq.",
+      "severity": "blocker"
+    },
+    {
+      "rule_id": "rule_homestead_execution_location",
+      "description": "If principal owns Texas homestead AND grants home-equity authority, execution must be in-person at lender/attorney/title company.",
+      "scope": ["step4a_homestead", "step7_execution_method"],
+      "trigger": "owns_texas_homestead == 'yes_homestead' AND grants_home_equity_authority == true",
+      "action": "force_in_person_execution",
+      "wizard_message": "Texas law requires that powers of attorney authorizing home-equity loan documents on your homestead be signed at the office of the lender, an attorney, or a title company. Remote online notarization is not sufficient for this combination.",
+      "statutory_source": "Tex. Const. art. XVI § 50(a)(6)(N); Tex. Est. Code § 752.051",
+      "severity": "execution_restriction"
+    },
+    {
+      "rule_id": "rule_self_dealing_screen",
+      "description": "If agent is not close family AND any hot power is granted, surface § 751.031(c) self-dealing warning.",
+      "scope": ["step3_agent", "step5_hot_powers"],
+      "trigger": "agent_relationship_not_close_family == true AND any_hot_power_granted == true",
+      "action": "show_warning_and_require_acknowledgment",
+      "wizard_message": "Under Texas Estates Code § 751.031(c), an agent who is not your spouse, parent, or descendant CANNOT use the granted powers to benefit themselves, even if you grant general gift-giving authority. This is automatic protection — you don't need to do anything. We just want to make sure you understand.",
+      "statutory_source": "Tex. Est. Code § 751.031(c)",
+      "severity": "warning"
+    },
+    {
+      "rule_id": "rule_witness_qualification_medical",
+      "description": "For Medical POA via witnesses, witness 1 must satisfy § 166.003(2).",
+      "scope": ["medical_witness_qualification"],
+      "trigger": "document_type == 'tx_medical_poa' AND execution_method == 'two_witnesses'",
+      "action": "qualify_witness_via_screening_questions",
+      "wizard_message": "Texas requires that the first witness to your Medical POA meet specific qualifications.",
+      "statutory_source": "Tex. Health & Safety Code § 166.003(2)",
+      "severity": "blocker"
+    },
+    {
+      "rule_id": "rule_springing_warning",
+      "description": "If user chooses springing POA, warn about practical acceptance issues.",
+      "scope": ["step6_effective_date"],
+      "trigger": "effective_date_choice == 'springing'",
+      "action": "show_warning_and_require_acknowledgment",
+      "wizard_message": "Springing powers of attorney can be harder to use. Banks and title companies often require additional documentation — a physician's letter, sometimes a court order. Many Texas attorneys recommend the immediate-effective version because it's easier to use AND your agent has fiduciary duties (Tex. Est. Code § 751.101–.106) that legally prevent them from misusing the authority while you're still capable.",
+      "statutory_source": "Tex. Est. Code § 751.00201",
+      "severity": "warning"
+    },
+    {
+      "rule_id": "rule_hot_powers_attorney_referral",
+      "description": "Surface attorney referral if any hot power (trust, beneficiary, survivorship) is granted.",
+      "scope": ["step5_hot_powers"],
+      "trigger": "hot_power_trust == true OR hot_power_survivorship == true OR hot_power_beneficiary == true",
+      "action": "show_attorney_referral_offer",
+      "wizard_message": "You are granting powers that can fundamentally alter your estate plan. POA-IT generates these clauses correctly under Texas statute, but we strongly recommend consulting a Texas attorney to confirm this aligns with your full estate plan. We can connect you with one at no charge from us.",
+      "statutory_source": "Tex. Est. Code § 751.031(b)",
+      "severity": "referral"
+    },
+    {
+      "rule_id": "rule_no_general_grant_without_initialing",
+      "description": "Prevent the user from executing a POA with no general powers initialed.",
+      "scope": ["step4_powers"],
+      "trigger": "no_general_powers_initialed == true AND no_all_powers_initialed == true",
+      "action": "block_completion_with_message",
+      "wizard_message": "You must select at least one power for your agent. If you want them to have full authority over your finances, check 'Grant all powers' at the top. Otherwise, check the specific powers you wish to grant.",
+      "statutory_source": "Tex. Est. Code § 752.051",
+      "severity": "blocker"
+    },
+    {
+      "rule_id": "rule_alternate_agent_skip_warning",
+      "description": "If user skips naming an alternate agent, show warning before allowing continue.",
+      "scope": ["step3_agent"],
+      "trigger": "successor_agent_named == false AND user_clicked_skip == true",
+      "action": "show_warning_and_require_acknowledgment",
+      "wizard_message": "Are you sure? Without an alternate, if your primary agent can't serve, your power of attorney becomes unusable and your family may need to go through guardianship court — which is expensive and slow.",
+      "severity": "warning"
+    },
+    {
+      "rule_id": "rule_gifts_above_exclusion_attorney_acknowledgment",
+      "description": "If user wants gift authority above the annual exclusion, require attorney consultation acknowledgment.",
+      "scope": ["step5_hot_powers"],
+      "trigger": "gift_limit_choice == 'above_annual_exclusion'",
+      "action": "require_attorney_consultation_acknowledgment",
+      "wizard_message": "Gift authority above the federal annual exclusion ($19,000 per donee for 2025) involves significant tax and estate-planning consequences. We strongly recommend Texas attorney consultation before proceeding.",
+      "statutory_source": "Tex. Est. Code § 751.031(b)(2); IRC § 2503(b); Rev. Proc. 2024-40",
+      "severity": "referral"
+    }
+  ]
+}

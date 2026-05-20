@@ -1,0 +1,411 @@
+{
+  "$schema": "https://poa-it.com/schemas/clause-library-v1.json",
+  "version": "1.0.0",
+  "jurisdiction": "TX",
+  "last_updated": "2026-05-20",
+  "attorney_reviewed_by": null,
+  "attorney_review_date": null,
+
+  "documents": {
+    "tx_durable_financial_poa": {
+      "title": "Texas Statutory Durable Power of Attorney",
+      "statutory_basis": "Tex. Est. Code § 752.051",
+      "template_id": "tpl_tx_durable_financial",
+      "execution_requirements": {
+        "principal_signature": true,
+        "witnesses_required": false,
+        "notarization_required": true,
+        "ron_eligible": true
+      }
+    },
+    "tx_medical_poa": {
+      "title": "Texas Medical Power of Attorney",
+      "statutory_basis": "Tex. Health & Safety Code § 166.164",
+      "template_id": "tpl_tx_medical",
+      "execution_requirements": {
+        "principal_signature": true,
+        "witnesses_required": "two_or_notary",
+        "witness_one_must_satisfy_disqualifications": "Tex. Health & Safety Code § 166.003(2)",
+        "notarization_alternative_to_witnesses": true,
+        "disclosure_statement_required": "Tex. Health & Safety Code § 166.163",
+        "ron_eligible": true
+      }
+    },
+    "tx_hipaa_authorization": {
+      "title": "HIPAA Authorization",
+      "statutory_basis": "45 C.F.R. § 164.508",
+      "template_id": "tpl_hipaa",
+      "execution_requirements": {
+        "principal_signature": true,
+        "witnesses_required": false,
+        "notarization_required": false,
+        "notarization_recommended": true
+      }
+    },
+    "tx_agent_certification": {
+      "title": "Agent's Certification",
+      "statutory_basis": "Tex. Est. Code § 751.203",
+      "template_id": "tpl_agent_cert",
+      "execution_requirements": {
+        "agent_signature": true,
+        "notarization_required": true
+      }
+    },
+    "tx_revocation": {
+      "title": "Revocation of Power of Attorney",
+      "statutory_basis": "Tex. Est. Code § 751.131",
+      "template_id": "tpl_revocation",
+      "execution_requirements": {
+        "principal_signature": true,
+        "notarization_required": true,
+        "recording_required_if_original_was_recorded": true,
+        "notice_to_former_agent_required": true,
+        "notice_to_third_parties_recommended": true
+      }
+    },
+    "tx_acceptance": {
+      "title": "Acceptance of Appointment",
+      "statutory_basis": "Best practice; § 751.022 governs implicit acceptance",
+      "template_id": "tpl_acceptance",
+      "execution_requirements": {
+        "agent_signature": true,
+        "notarization_required": false
+      }
+    }
+  },
+
+  "clauses": [
+    {
+      "clause_id": "tx_durable_notice_block",
+      "applies_to": ["tx_durable_financial_poa"],
+      "statutory_source": "Tex. Est. Code § 752.051",
+      "category": "header",
+      "required": true,
+      "trigger": "always",
+      "language": "NOTICE: THE POWERS GRANTED BY THIS DOCUMENT ARE BROAD AND SWEEPING. THEY ARE EXPLAINED IN THE DURABLE POWER OF ATTORNEY ACT, SUBTITLE P, TITLE 2, ESTATES CODE. IF YOU HAVE ANY QUESTIONS ABOUT THESE POWERS, OBTAIN COMPETENT LEGAL ADVICE. THIS DOCUMENT DOES NOT AUTHORIZE ANYONE TO MAKE MEDICAL AND OTHER HEALTH-CARE DECISIONS FOR YOU. YOU MAY REVOKE THIS POWER OF ATTORNEY IF YOU LATER WISH TO DO SO.",
+      "formatting": "all_caps_required"
+    },
+    {
+      "clause_id": "tx_durable_home_equity_warning",
+      "applies_to": ["tx_durable_financial_poa"],
+      "statutory_source": "Tex. Est. Code § 752.051; Tex. Const. art. XVI § 50(a)(6)(N)",
+      "category": "header",
+      "required": true,
+      "trigger": "always",
+      "language": "IF YOU WANT YOUR AGENT TO HAVE THE AUTHORITY TO SIGN HOME EQUITY LOAN DOCUMENTS ON YOUR BEHALF, THIS POWER OF ATTORNEY MUST BE SIGNED BY YOU AT THE OFFICE OF THE LENDER, AN ATTORNEY AT LAW, OR A TITLE COMPANY.",
+      "formatting": "all_caps_required"
+    },
+    {
+      "clause_id": "power_real_property",
+      "applies_to": ["tx_durable_financial_poa"],
+      "statutory_source": "Tex. Est. Code §§ 752.051, 752.102",
+      "category": "general_powers",
+      "letter": "A",
+      "plain_english_name": "Real property transactions",
+      "plain_english_examples": "Buy or sell your house, lease property, refinance a mortgage, sign closing documents.",
+      "required": false,
+      "trigger": "user_initialed('real_property') OR user_initialed('all_powers')",
+      "language": "(A)  Real property transactions;"
+    },
+    {
+      "clause_id": "power_tangible_personal_property",
+      "applies_to": ["tx_durable_financial_poa"],
+      "statutory_source": "Tex. Est. Code §§ 752.051, 752.103",
+      "category": "general_powers",
+      "letter": "B",
+      "plain_english_name": "Tangible personal property transactions",
+      "plain_english_examples": "Buy, sell, or manage your car, furniture, art, collectibles, or other physical items.",
+      "required": false,
+      "trigger": "user_initialed('tangible_personal_property') OR user_initialed('all_powers')",
+      "language": "(B)  Tangible personal property transactions;"
+    },
+    {
+      "clause_id": "power_stocks_and_bonds",
+      "applies_to": ["tx_durable_financial_poa"],
+      "statutory_source": "Tex. Est. Code §§ 752.051, 752.104",
+      "category": "general_powers",
+      "letter": "C",
+      "plain_english_name": "Stock and bond transactions",
+      "plain_english_examples": "Buy or sell stocks, manage your brokerage account, vote shares.",
+      "required": false,
+      "trigger": "user_initialed('stocks_and_bonds') OR user_initialed('all_powers')",
+      "language": "(C)  Stock and bond transactions;"
+    },
+    {
+      "clause_id": "power_commodity_and_option",
+      "applies_to": ["tx_durable_financial_poa"],
+      "statutory_source": "Tex. Est. Code §§ 752.051, 752.105",
+      "category": "general_powers",
+      "letter": "D",
+      "plain_english_name": "Commodity and option transactions",
+      "plain_english_examples": "Trade futures, options, or commodities. Most people don't need this unless they have a sophisticated trading account.",
+      "required": false,
+      "trigger": "user_initialed('commodity_and_option') OR user_initialed('all_powers')",
+      "language": "(D)  Commodity and option transactions;"
+    },
+    {
+      "clause_id": "power_banking_and_financial",
+      "applies_to": ["tx_durable_financial_poa"],
+      "statutory_source": "Tex. Est. Code §§ 752.051, 752.106",
+      "category": "general_powers",
+      "letter": "E",
+      "plain_english_name": "Banking and financial institution transactions",
+      "plain_english_examples": "Write checks, pay bills, deposit Social Security or pension, transfer between accounts, open or close accounts. The most-used power.",
+      "required": false,
+      "trigger": "user_initialed('banking_and_financial') OR user_initialed('all_powers')",
+      "language": "(E)  Banking and other financial institution transactions;"
+    },
+    {
+      "clause_id": "power_business_operating",
+      "applies_to": ["tx_durable_financial_poa"],
+      "statutory_source": "Tex. Est. Code §§ 752.051, 752.107",
+      "category": "general_powers",
+      "letter": "F",
+      "plain_english_name": "Business operating transactions",
+      "plain_english_examples": "Run a business you own, pay employees, sign vendor contracts. Only relevant if you own a business someone else might need to operate.",
+      "required": false,
+      "trigger": "user_initialed('business_operating') OR user_initialed('all_powers')",
+      "language": "(F)  Business operating transactions;"
+    },
+    {
+      "clause_id": "power_insurance_and_annuity",
+      "applies_to": ["tx_durable_financial_poa"],
+      "statutory_source": "Tex. Est. Code §§ 752.051, 752.108",
+      "category": "general_powers",
+      "letter": "G",
+      "plain_english_name": "Insurance and annuity transactions",
+      "plain_english_examples": "File insurance claims, change beneficiaries on policies you own, manage annuity payments.",
+      "required": false,
+      "trigger": "user_initialed('insurance_and_annuity') OR user_initialed('all_powers')",
+      "language": "(G)  Insurance and annuity transactions;"
+    },
+    {
+      "clause_id": "power_estate_trust_beneficiary",
+      "applies_to": ["tx_durable_financial_poa"],
+      "statutory_source": "Tex. Est. Code §§ 752.051, 752.109",
+      "category": "general_powers",
+      "letter": "H",
+      "plain_english_name": "Estate, trust, and beneficiary transactions",
+      "plain_english_examples": "Handle inheritance issues, deal with trustees on your behalf. Does NOT include modifying trusts — that's a hot power.",
+      "required": false,
+      "trigger": "user_initialed('estate_trust_beneficiary') OR user_initialed('all_powers')",
+      "language": "(H)  Estate, trust, and other beneficiary transactions;"
+    },
+    {
+      "clause_id": "power_claims_and_litigation",
+      "applies_to": ["tx_durable_financial_poa"],
+      "statutory_source": "Tex. Est. Code §§ 752.051, 752.110",
+      "category": "general_powers",
+      "letter": "I",
+      "plain_english_name": "Claims and litigation",
+      "plain_english_examples": "Hire a lawyer for you, settle a lawsuit on your behalf, file or defend claims.",
+      "required": false,
+      "trigger": "user_initialed('claims_and_litigation') OR user_initialed('all_powers')",
+      "language": "(I)  Claims and litigation;"
+    },
+    {
+      "clause_id": "power_personal_and_family_maintenance",
+      "applies_to": ["tx_durable_financial_poa"],
+      "statutory_source": "Tex. Est. Code §§ 752.051, 752.111",
+      "category": "general_powers",
+      "letter": "J",
+      "plain_english_name": "Personal and family maintenance",
+      "plain_english_examples": "Maintain your household, pay for your family's needs, continue charitable giving you usually do.",
+      "required": false,
+      "trigger": "user_initialed('personal_and_family_maintenance') OR user_initialed('all_powers')",
+      "language": "(J)  Personal and family maintenance;"
+    },
+    {
+      "clause_id": "power_government_benefits",
+      "applies_to": ["tx_durable_financial_poa"],
+      "statutory_source": "Tex. Est. Code §§ 752.051, 752.112",
+      "category": "general_powers",
+      "letter": "K",
+      "plain_english_name": "Government benefits",
+      "plain_english_examples": "Deal with Social Security, Medicare, Medicaid, or veterans' benefits. Note: SSA, VA, and Medicare each require their own forms.",
+      "required": false,
+      "trigger": "user_initialed('government_benefits') OR user_initialed('all_powers')",
+      "language": "(K)  Benefits from social security, Medicare, Medicaid, or other governmental programs or civil or military service;"
+    },
+    {
+      "clause_id": "power_retirement_plan",
+      "applies_to": ["tx_durable_financial_poa"],
+      "statutory_source": "Tex. Est. Code §§ 752.051, 752.113",
+      "category": "general_powers",
+      "letter": "L",
+      "plain_english_name": "Retirement plan transactions",
+      "plain_english_examples": "Deal with your 401(k), IRA, pension plan. Changing beneficiaries requires the separate hot-power authority.",
+      "required": false,
+      "trigger": "user_initialed('retirement_plan') OR user_initialed('all_powers')",
+      "language": "(L)  Retirement plan transactions;"
+    },
+    {
+      "clause_id": "power_tax_matters",
+      "applies_to": ["tx_durable_financial_poa"],
+      "statutory_source": "Tex. Est. Code §§ 752.051, 752.114",
+      "category": "general_powers",
+      "letter": "M",
+      "plain_english_name": "Tax matters",
+      "plain_english_examples": "File your tax return, sign IRS forms, respond to IRS letters, claim refunds. The IRS requires a separate Form 2848 for federal tax representation.",
+      "required": false,
+      "trigger": "user_initialed('tax_matters') OR user_initialed('all_powers')",
+      "language": "(M)  Tax matters;"
+    },
+    {
+      "clause_id": "power_digital_assets",
+      "applies_to": ["tx_durable_financial_poa"],
+      "statutory_source": "Tex. Est. Code §§ 752.051, 752.1145; Tex. Est. Code Ch. 2001 (TRUFADAA)",
+      "category": "general_powers",
+      "letter": "N",
+      "plain_english_name": "Digital assets and electronic communications",
+      "plain_english_examples": "Access your email, manage cloud accounts, handle cryptocurrency, close down social media. Added by Texas in 2017.",
+      "required": false,
+      "trigger": "user_initialed('digital_assets') OR user_initialed('all_powers')",
+      "language": "(N)  Digital assets and the content of an electronic communication;"
+    },
+    {
+      "clause_id": "power_all_of_the_above",
+      "applies_to": ["tx_durable_financial_poa"],
+      "statutory_source": "Tex. Est. Code § 752.051",
+      "category": "general_powers",
+      "letter": "O",
+      "plain_english_name": "All powers (A through N)",
+      "plain_english_examples": "The most common choice — grants every power above without having to check each one individually.",
+      "required": false,
+      "trigger": "user_initialed('all_powers')",
+      "language": "(O)  ALL OF THE POWERS LISTED ABOVE.\n\nYOU NEED NOT INITIAL ANY OTHER LINES IF YOU INITIAL LINE (O)."
+    },
+    {
+      "clause_id": "hot_power_gifts_default_limited",
+      "applies_to": ["tx_durable_financial_poa"],
+      "statutory_source": "Tex. Est. Code §§ 751.031(b)(2), 751.032, 752.052",
+      "category": "hot_powers",
+      "plain_english_name": "Authority to make gifts",
+      "plain_english_examples": "Give money to grandchildren, make charitable donations, transfer property to family. Default limit: $19,000 per person per year (2025 federal exclusion).",
+      "required": true,
+      "trigger": "always",
+      "language": "Special instructions applicable to gifts (initial in front of the following sentence to have it apply):\n\n_____  I grant my agent the power to apply my property to make gifts outside the ambit of Section 751.032, Estates Code, except that the amount of a gift to an individual may not exceed the amount of annual exclusions allowed from the federal gift tax for the calendar year of the gift."
+    },
+    {
+      "clause_id": "hot_power_create_amend_trust",
+      "applies_to": ["tx_durable_financial_poa"],
+      "statutory_source": "Tex. Est. Code §§ 751.031(b)(1), 752.052",
+      "category": "hot_powers",
+      "plain_english_name": "Authority to create, amend, revoke, or terminate a trust",
+      "plain_english_examples": "Lets your agent change your estate plan via trust modification. High-risk; attorney consultation strongly recommended.",
+      "required": false,
+      "trigger": "user_granted('hot_power_trust')",
+      "language": "I grant my agent the power to create, amend, revoke, or terminate an inter vivos trust.",
+      "wizard_attorney_referral_recommended": true
+    },
+    {
+      "clause_id": "hot_power_rights_of_survivorship",
+      "applies_to": ["tx_durable_financial_poa"],
+      "statutory_source": "Tex. Est. Code §§ 751.031(b)(3), 752.052",
+      "category": "hot_powers",
+      "plain_english_name": "Authority to change rights of survivorship",
+      "plain_english_examples": "Add or remove rights of survivorship on jointly owned property. Can fundamentally alter who inherits.",
+      "required": false,
+      "trigger": "user_granted('hot_power_survivorship')",
+      "language": "I grant my agent the power to create or change rights of survivorship.",
+      "wizard_attorney_referral_recommended": true
+    },
+    {
+      "clause_id": "hot_power_beneficiary_designations",
+      "applies_to": ["tx_durable_financial_poa"],
+      "statutory_source": "Tex. Est. Code §§ 751.031(b)(4), 752.052",
+      "category": "hot_powers",
+      "plain_english_name": "Authority to change beneficiary designations",
+      "plain_english_examples": "Change beneficiaries on retirement accounts, life insurance, TOD accounts. These override your will.",
+      "required": false,
+      "trigger": "user_granted('hot_power_beneficiary')",
+      "language": "I grant my agent the power to create or change a beneficiary designation.",
+      "wizard_attorney_referral_recommended": true
+    },
+    {
+      "clause_id": "hot_power_delegate_authority",
+      "applies_to": ["tx_durable_financial_poa"],
+      "statutory_source": "Tex. Est. Code §§ 751.031(b)(5), 752.052",
+      "category": "hot_powers",
+      "plain_english_name": "Authority to delegate",
+      "plain_english_examples": "Let your agent hire third parties (money managers, bill-pay services) to handle specific things.",
+      "required": false,
+      "trigger": "user_granted('hot_power_delegate')",
+      "language": "I grant my agent the power to delegate any of the foregoing powers to any person or persons whom my agent selects."
+    },
+    {
+      "clause_id": "effective_immediate_durability",
+      "applies_to": ["tx_durable_financial_poa"],
+      "statutory_source": "Tex. Est. Code § 752.051 (Alt A)",
+      "category": "effective_date",
+      "required": true,
+      "trigger": "user_chose('effective_immediate')",
+      "language": "(A)  This power of attorney is not affected by my subsequent disability or incapacity.\n\n(B)  ~~This power of attorney becomes effective upon my disability or incapacity.~~"
+    },
+    {
+      "clause_id": "effective_springing",
+      "applies_to": ["tx_durable_financial_poa"],
+      "statutory_source": "Tex. Est. Code § 752.051 (Alt B); § 751.00201",
+      "category": "effective_date",
+      "required": false,
+      "trigger": "user_chose('effective_springing')",
+      "language": "(A)  ~~This power of attorney is not affected by my subsequent disability or incapacity.~~\n\n(B)  This power of attorney becomes effective upon my disability or incapacity.\n\nFor purposes of this power of attorney, I am disabled or incapacitated when a physician licensed to practice medicine in the United States certifies in writing, based on the physician's medical examination of me, that I am mentally incapable of managing my financial affairs."
+    },
+    {
+      "clause_id": "successor_agent_clause",
+      "applies_to": ["tx_durable_financial_poa", "tx_medical_poa"],
+      "statutory_source": "Tex. Est. Code § 751.023; Tex. Health & Safety Code § 166.164",
+      "category": "agent_designation",
+      "required": false,
+      "trigger": "user_named('successor_agent')",
+      "language": "If the agent named above is unable or unwilling to serve, or ceases to serve, I appoint as my successor agent: {{successor_agent_full_legal_name}}, of {{successor_agent_address}}."
+    },
+    {
+      "clause_id": "third_party_indemnification",
+      "applies_to": ["tx_durable_financial_poa"],
+      "statutory_source": "Tex. Est. Code § 752.051; §§ 751.201, 751.211",
+      "category": "third_party_provisions",
+      "required": true,
+      "trigger": "always",
+      "language": "I agree that any third party who receives a copy of this document may act under it. Revocation of the durable power of attorney is not effective as to a third party until the third party has actual knowledge of the revocation. I agree to indemnify the third party for any claims that arise against the third party because of reliance on this power of attorney."
+    },
+    {
+      "clause_id": "agent_fiduciary_acceptance_warning",
+      "applies_to": ["tx_durable_financial_poa"],
+      "statutory_source": "Tex. Est. Code § 752.051; §§ 751.101–.106",
+      "category": "agent_duties",
+      "required": true,
+      "trigger": "always",
+      "language": "THE AGENT, BY ACCEPTING OR ACTING UNDER THE APPOINTMENT, ASSUMES THE FIDUCIARY AND OTHER LEGAL RESPONSIBILITIES OF AN AGENT.",
+      "formatting": "all_caps_required"
+    },
+    {
+      "clause_id": "notary_acknowledgment_standard",
+      "applies_to": ["tx_durable_financial_poa", "tx_medical_poa", "tx_hipaa_authorization", "tx_agent_certification", "tx_revocation"],
+      "statutory_source": "Tex. Civ. Prac. & Rem. Code § 121.001; Tex. Gov't Code § 406.013",
+      "category": "execution",
+      "required": "conditional",
+      "trigger": "execution_method == 'in_person_notary'",
+      "language": "THE STATE OF TEXAS § \n § \nCOUNTY OF {{notary_county}} §\n\nThis instrument was acknowledged before me on {{notary_execution_date}} by {{signer_full_legal_name}}.\n\n_______________________________\nNotary Public, State of Texas\nCommission expires: ________________"
+    },
+    {
+      "clause_id": "notary_acknowledgment_ron",
+      "applies_to": ["tx_durable_financial_poa", "tx_medical_poa", "tx_hipaa_authorization", "tx_agent_certification", "tx_revocation"],
+      "statutory_source": "Tex. Gov't Code §§ 406.101–.111",
+      "category": "execution",
+      "required": "conditional",
+      "trigger": "execution_method == 'remote_online_notary'",
+      "language": "THE STATE OF TEXAS § \n § \nCOUNTY OF {{notary_county}} §\n\nThis instrument was acknowledged before me on {{notary_execution_date}} by {{signer_full_legal_name}}.\n\nThis notarization was performed online.\n\n_______________________________\nNotary Public, State of Texas\nCommission expires: ________________"
+    }
+  ],
+
+  "metadata": {
+    "annual_gift_tax_exclusion_2025_per_donee_usd": 19000,
+    "annual_gift_tax_exclusion_source": "IRS Rev. Proc. 2024-40",
+    "ron_recording_retention_years": 5,
+    "ron_recording_retention_statute": "Tex. Gov't Code § 406.108",
+    "statutory_max_notary_fee_first_signature_usd": 10,
+    "statutory_max_notary_fee_additional_signature_usd": 1,
+    "notary_fee_statute": "Tex. Gov't Code § 406.024 (as amended by HB 255, 88th Leg., 2023)"
+  }
+}
