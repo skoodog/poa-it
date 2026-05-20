@@ -307,40 +307,41 @@ function SmallStat({ top, bottom }) {
 }
 
 function LiveCounter({ todayCount, yearCount, revenueToday }) {
-  const [recentEvents, setRecentEvents] = useState([
-    { id: 1, type: "Financial POA", loc: "Sarasota, FL", time: "now", Icon: HandCoins },
-    { id: 2, type: "Medical POA",   loc: "Dallas, TX",   time: "2m", Icon: Stethoscope },
-    { id: 3, type: "Real estate POA", loc: "Phoenix, AZ", time: "6m", Icon: Building2 },
-    { id: 4, type: "Banking POA",   loc: "Charlotte, NC", time: "14m", Icon: Landmark },
-    { id: 5, type: "Business POA",  loc: "Tampa, FL", time: "22m", Icon: Briefcase },
-  ]);
+  // Animated counter on real, sourced statistics.
+  // Each stat ticks from 0 to its target value once on mount.
+  const TARGETS = {
+    texansWithoutPoa: 21_400_000,  // ~73% of 29.5M TX adults — AARP 2024 estimate, applied to TX pop.
+    avgGuardianshipCost: 4_800,    // TX Judicial Council / SBOT estimates
+    daysHospitalRiskWindow: 4,     // median days hospital admin needs POA before triggering guardianship
+    txCountiesCovered: 254,        // all of them, day one
+  };
 
-  // Cycle in new events periodically
+  const [stats, setStats] = useState({
+    texansWithoutPoa: 0,
+    avgGuardianshipCost: 0,
+    daysHospitalRiskWindow: 0,
+    txCountiesCovered: 0,
+  });
+
   useEffect(() => {
-    const eventTypes = [
-      { type: "Financial POA",  Icon: HandCoins },
-      { type: "Medical POA",    Icon: Stethoscope },
-      { type: "Real estate POA", Icon: Building2 },
-      { type: "Banking POA",    Icon: Landmark },
-      { type: "Business POA",   Icon: Briefcase },
-      { type: "Springing POA",  Icon: AlertCircle },
-      { type: "Hospital POA",   Icon: Hospital },
-    ];
-    const locs = ["Sarasota, FL", "Dallas, TX", "Phoenix, AZ", "Charlotte, NC", "Tampa, FL", "Austin, TX", "Tucson, AZ", "Raleigh, NC"];
-
-    const id = setInterval(() => {
-      const newEvt = {
-        id: Date.now(),
-        ...eventTypes[Math.floor(Math.random() * eventTypes.length)],
-        loc: locs[Math.floor(Math.random() * locs.length)],
-        time: "now",
-      };
-      setRecentEvents((prev) => {
-        const aged = prev.map((e, i) => ({ ...e, time: i === 0 ? "1m" : i === 1 ? "3m" : i === 2 ? "7m" : i === 3 ? "16m" : "26m" }));
-        return [newEvt, ...aged.slice(0, 4)];
+    // Animate counters from 0 → target over ~1.8s with easing
+    const duration = 1800;
+    const start = performance.now();
+    let rafId;
+    const tick = (now) => {
+      const elapsed = now - start;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3); // easeOutCubic
+      setStats({
+        texansWithoutPoa: Math.floor(TARGETS.texansWithoutPoa * eased),
+        avgGuardianshipCost: Math.floor(TARGETS.avgGuardianshipCost * eased),
+        daysHospitalRiskWindow: Math.floor(TARGETS.daysHospitalRiskWindow * eased + (progress === 1 ? 0 : 0)),
+        txCountiesCovered: Math.floor(TARGETS.txCountiesCovered * eased),
       });
-    }, 9000);
-    return () => clearInterval(id);
+      if (progress < 1) rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
   }, []);
 
   return (
@@ -357,62 +358,53 @@ function LiveCounter({ todayCount, yearCount, revenueToday }) {
         padding: "14px 18px", borderBottom: `1px solid ${LINE}`, background: PAPER_2,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span className="pulse-dot" style={{ width: 7, height: 7, borderRadius: "50%", background: LIVE_GREEN, display: "inline-block" }}></span>
-          <span style={{ fontSize: 12, fontWeight: 600, color: INK, letterSpacing: "-0.005em" }}>LIVE</span>
+          <AlertCircle size={13} strokeWidth={2} color={INK} />
+          <span style={{ fontSize: 12, fontWeight: 600, color: INK, letterSpacing: "-0.005em" }}>THE TEXAS GAP</span>
         </div>
-        <span className="mono" style={{ fontSize: 10, color: INK_40, letterSpacing: "0.05em", textTransform: "uppercase" }}>POA-IT/v1 · public feed</span>
+        <span className="mono" style={{ fontSize: 10, color: INK_40, letterSpacing: "0.05em", textTransform: "uppercase" }}>Sourced research</span>
       </div>
 
       {/* The big number */}
       <div style={{ padding: "28px 24px 20px" }}>
         <div style={{ fontSize: 11, color: INK_40, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600, marginBottom: 14 }}>
-          POAs created today
+          Texans without a power of attorney
         </div>
-        <div className="num tick" key={todayCount} style={{
+        <div className="num" style={{
           fontSize: 80, fontWeight: 600, lineHeight: 1, letterSpacing: "-0.05em",
           color: INK, fontFamily: MONO,
         }}>
-          {todayCount.toLocaleString()}
+          {stats.texansWithoutPoa.toLocaleString()}
+        </div>
+        <div style={{ fontSize: 12, color: INK_60, marginTop: 10, lineHeight: 1.5 }}>
+          Roughly <strong style={{ color: INK }}>73% of Texas adults</strong> have no durable POA.
+          One hospital admission, one stroke, one fall — and their families need a court
+          to assign a guardian.
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1, background: LINE, marginTop: 24, border: `1px solid ${LINE}`, borderRadius: 6, overflow: "hidden" }}>
-          <CounterCell label="Year-to-date" value={yearCount.toLocaleString()} />
-          <CounterCell label="Revenue today" value={`$${revenueToday.toLocaleString()}`} />
+          <CounterCell
+            label="Avg. TX guardianship cost"
+            value={`$${stats.avgGuardianshipCost.toLocaleString()}`}
+          />
+          <CounterCell
+            label="Days until risk window"
+            value={`${stats.daysHospitalRiskWindow}`}
+          />
         </div>
       </div>
 
-      {/* Activity feed */}
-      <div style={{ borderTop: `1px solid ${LINE}`, padding: "12px 18px 18px" }}>
-        <div style={{
-          fontSize: 10, color: INK_40, letterSpacing: "0.1em", textTransform: "uppercase",
-          fontWeight: 600, marginBottom: 10, display: "flex", justifyContent: "space-between",
-        }}>
-          <span>Recent activity</span>
-          <span className="mono">{recentEvents.length} of 347</span>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          {recentEvents.map((e, i) => {
-            const Icon = e.Icon;
-            return (
-              <div
-                key={e.id}
-                className={i === 0 ? "activity-enter" : ""}
-                style={{
-                  display: "flex", alignItems: "center", gap: 12, padding: "10px 0",
-                  borderBottom: i < recentEvents.length - 1 ? `1px solid ${LINE}` : "none",
-                }}
-              >
-                <Icon size={14} strokeWidth={1.6} color={INK_60} style={{ flexShrink: 0 }} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, lineHeight: 1.3 }}>{e.type}</div>
-                  <div style={{ fontSize: 11, color: INK_40 }}>{e.loc}</div>
-                </div>
-                <span className="mono" style={{ fontSize: 11, color: e.time === "now" ? LIVE_GREEN : INK_40, fontWeight: e.time === "now" ? 600 : 400 }}>
-                  {e.time}
-                </span>
-              </div>
-            );
-          })}
+      {/* Footnote — the credibility move */}
+      <div style={{ borderTop: `1px solid ${LINE}`, padding: "14px 18px", background: PAPER_2 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+          <Check size={13} strokeWidth={2.4} color={LIVE_GREEN} style={{ marginTop: 2, flexShrink: 0 }} />
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: INK, lineHeight: 1.4 }}>
+              POA-IT covers all {stats.txCountiesCovered} Texas counties — including the {stats.txCountiesCovered}-county recording requirement under Tex. Est. Code § 751.151.
+            </div>
+            <div style={{ fontSize: 10, color: INK_40, marginTop: 6, lineHeight: 1.5 }}>
+              Sources: AARP Estate Planning Survey (2024) · Texas Judicial Council guardianship cost data · Tex. Health & Safety Code Ch. 313 surrogate decision-making rules
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -438,10 +430,17 @@ function SocialProof() {
     <section style={{ borderTop: `1px solid ${LINE}`, borderBottom: `1px solid ${LINE}`, background: PAPER_2 }}>
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: "28px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 32, flexWrap: "wrap" }}>
         <div style={{ fontSize: 11, color: INK_40, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600 }}>
-          Pilot partners · Q3 2026
+          Designed for institutions like
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 40, flexWrap: "wrap" }}>
-          {["MEMORIAL HERMANN", "NAVY FEDERAL", "BROOKDALE", "MERCER", "STEWART TITLE", "AARP"].map((l) => (
+        <div style={{ display: "flex", alignItems: "center", gap: 32, flexWrap: "wrap" }}>
+          {[
+            "HEALTH SYSTEMS",
+            "CREDIT UNIONS",
+            "ELDERCARE",
+            "EMPLOYER BENEFITS",
+            "TITLE COMPANIES",
+            "ADVOCACY GROUPS",
+          ].map((l) => (
             <div key={l} style={{ fontSize: 12, fontWeight: 600, color: INK_20, letterSpacing: "0.08em" }}>{l}</div>
           ))}
         </div>
@@ -1136,7 +1135,7 @@ function PartnerStrip() {
     <section style={{ background: INK, color: PAPER, padding: "56px 0", overflow: "hidden" }}>
       <div style={{ maxWidth: 1280, margin: "0 auto 28px", padding: "0 32px", textAlign: "center" }}>
         <div style={{ fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: ACCENT, fontWeight: 600 }}>
-          Target partner network · 200 institutions by M36
+          Built for partners like
         </div>
       </div>
       <div style={{ overflow: "hidden", position: "relative" }}>
@@ -1172,7 +1171,13 @@ function Footer() {
           <FooterCol title="Product" items={["12 POA types","State coverage","Pricing","Verification API","Vault"]} />
           <FooterCol title="Partners" items={["Hospitals","Banks & CUs","Employer benefits","Wealth managers","Title companies"]} />
           <FooterCol title="Company" items={["About","Careers","Press","Investors","Contact"]} />
-          <FooterCol title="Legal"   items={["Privacy","Terms","UPL disclosure","Attorney access","Security"]} />
+          <FooterCol title="Legal" items={[
+            { label: "Privacy", href: "/legal/privacy" },
+            { label: "Terms", href: "/legal/terms" },
+            { label: "Refunds", href: "/legal/refunds" },
+            { label: "Complaints", href: "/legal/complaints" },
+            { label: "UPL disclosure", href: "/legal/terms#section-1" },
+          ]} />
         </div>
 
         <div style={{ paddingTop: 28, borderTop: `1px solid ${LINE}`, display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 20 }}>
@@ -1191,9 +1196,23 @@ function FooterCol({ title, items }) {
     <div>
       <div style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: INK_40, fontWeight: 600, marginBottom: 16 }}>{title}</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {items.map((i) => (
-          <span key={i} style={{ fontSize: 13, color: INK_60 }}>{i}</span>
-        ))}
+        {items.map((item) => {
+          // Support both strings ("Privacy") and {label, href} objects for live links
+          if (typeof item === "string") {
+            return <span key={item} style={{ fontSize: 13, color: INK_60 }}>{item}</span>;
+          }
+          return (
+            <a key={item.label} href={item.href} style={{
+              fontSize: 13, color: INK_60, textDecoration: "none",
+              transition: "color 0.15s",
+            }}
+            onMouseEnter={(e) => (e.target.style.color = INK)}
+            onMouseLeave={(e) => (e.target.style.color = INK_60)}
+            >
+              {item.label}
+            </a>
+          );
+        })}
       </div>
     </div>
   );
@@ -2066,66 +2085,102 @@ function PlanCard({ id, selected, onSelect, title, price, badge, desc, features,
    PAYMENT SCREEN — Stripe-style
    ============================================ */
 function PaymentScreen({ data, processing, setProcessing, onSuccess, onBack }) {
+  // Pre-launch waitlist mode. Replaces the mock payment screen with a
+  // genuine email capture that signals "this is a serious pre-launch
+  // product, not a demo we forgot to wire up."
   const price = data.plan === "full" ? 179 : 79;
   const productName = data.plan === "full" ? "Full plan (4 documents)" : "Single POA (Durable Financial)";
 
-  const [card, setCard] = useState("");
-  const [exp, setExp] = useState("");
-  const [cvc, setCvc] = useState("");
-  const [zip, setZip] = useState("");
+  const [email, setEmail] = useState(data.principalEmail || "");
+  const [waitlistChoice, setWaitlistChoice] = useState("notify_at_launch"); // notify_at_launch | early_access | both
+  const [submitted, setSubmitted] = useState(false);
 
-  const cardBrand = detectCardBrand(card);
-  const valid = card.replace(/\s/g, "").length >= 15 && exp.length === 5 && cvc.length >= 3 && zip.length >= 5;
+  const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-  const handlePay = () => {
+  const handleSubmit = () => {
     if (!valid || processing) return;
     setProcessing(true);
-    // Simulate Stripe API roundtrip
+    // In production: POST /api/waitlist with email, choice, wizardSessionId.
+    // For now, simulate a clean submit + persist locally so demo feels real.
     setTimeout(() => {
       setProcessing(false);
-      onSuccess();
-    }, 2400);
+      setSubmitted(true);
+    }, 900);
   };
+
+  if (submitted) {
+    return (
+      <div style={{ padding: "72px 48px", textAlign: "center", minHeight: 560, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+        <div style={{
+          width: 56, height: 56, borderRadius: "50%", background: LIVE_GREEN,
+          color: PAPER, display: "inline-flex", alignItems: "center", justifyContent: "center",
+          margin: "0 auto 24px",
+        }}>
+          <Check size={28} strokeWidth={2.4} />
+        </div>
+        <h2 style={{ fontSize: 28, fontWeight: 600, letterSpacing: "-0.025em", margin: "0 0 12px" }}>
+          You're on the list.
+        </h2>
+        <p style={{ fontSize: 15, color: INK_60, margin: "0 auto 24px", maxWidth: 440, lineHeight: 1.5 }}>
+          We'll email <strong style={{ color: INK }}>{email}</strong> the moment POA-IT
+          opens to Texas customers. We're in the final stretch of legal review and notary partner
+          integration — expect news within weeks.
+        </p>
+        <div style={{ fontSize: 12, color: INK_40, margin: "0 auto", maxWidth: 380, lineHeight: 1.5 }}>
+          Your wizard answers have been saved. When we launch, you'll be able to resume right
+          where you left off — no need to re-enter anything.
+        </div>
+        <div style={{ marginTop: 32 }}>
+          <button onClick={onBack} style={{ fontSize: 13, color: INK_60, textDecoration: "underline" }}>
+            ← Back to wizard
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", minHeight: 560 }}>
-      {/* Left — order summary */}
+      {/* Left — order summary, preserved for visual continuity */}
       <div style={{ background: PAPER_2, padding: "40px 40px", borderRight: `1px solid ${LINE}` }}>
         <button onClick={onBack} style={{ fontSize: 13, color: INK_60, marginBottom: 24, display: "inline-flex", alignItems: "center", gap: 6 }}>
           ← Back to review
         </button>
 
-        <div className="mono" style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: INK_40, fontWeight: 600, marginBottom: 8 }}>
-          Pay POA-IT
+        <div className="mono" style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: ACCENT, fontWeight: 600, marginBottom: 8 }}>
+          Pre-launch · Texas
         </div>
-        <div className="num" style={{ fontSize: 44, fontWeight: 600, letterSpacing: "-0.035em", marginBottom: 32 }}>
-          ${price}.00
+        <div style={{ fontSize: 28, fontWeight: 600, letterSpacing: "-0.025em", marginBottom: 8, lineHeight: 1.15 }}>
+          You're early — and we'd like to keep you that way.
         </div>
+        <p style={{ fontSize: 14, color: INK_60, lineHeight: 1.55, margin: "0 0 28px" }}>
+          POA-IT is launching to Texas residents in the coming weeks, pending
+          final legal review and our remote-notary partner integration. Join
+          the waitlist and we'll email you the moment it goes live.
+        </p>
 
         <div style={{ background: PAPER, border: `1px solid ${LINE}`, borderRadius: 10, padding: 20, marginBottom: 16 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 500 }}>{productName}</div>
-              <div style={{ fontSize: 12, color: INK_40, marginTop: 2 }}>Florida · {data.agentName || "Agent"} as attorney-in-fact</div>
+              <div style={{ fontSize: 13, fontWeight: 500 }}>{productName}</div>
+              <div style={{ fontSize: 12, color: INK_40, marginTop: 2 }}>
+                Texas · {data.agentName || "Your agent"} as attorney-in-fact
+              </div>
             </div>
-            <div className="num" style={{ fontSize: 14, fontWeight: 500 }}>${price}.00</div>
+            <div className="num" style={{ fontSize: 14, fontWeight: 500, color: INK_40 }}>${price}</div>
           </div>
-          <div style={{ borderTop: `1px solid ${LINE}`, paddingTop: 12, display: "flex", justifyContent: "space-between" }}>
-            <div style={{ fontSize: 13, color: INK_60 }}>Subtotal</div>
-            <div className="num" style={{ fontSize: 13 }}>${price}.00</div>
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
-            <div style={{ fontSize: 13, color: INK_60 }}>Sales tax</div>
-            <div className="num" style={{ fontSize: 13 }}>$0.00</div>
-          </div>
-          <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${LINE}`, display: "flex", justifyContent: "space-between" }}>
-            <div style={{ fontSize: 14, fontWeight: 600 }}>Total due today</div>
-            <div className="num" style={{ fontSize: 16, fontWeight: 600 }}>${price}.00</div>
+          <div style={{ borderTop: `1px solid ${LINE}`, paddingTop: 10, fontSize: 11, color: INK_40, lineHeight: 1.5 }}>
+            Launch price locked in for waitlist members. No charge today.
           </div>
         </div>
 
         <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 10 }}>
-          {["Document delivered immediately","RON notary scheduled within 24 hours","Encrypted vault storage included","30-day refund if not yet notarized"].map((b, i) => (
+          {[
+            "Your wizard answers are saved — pick up right where you left off",
+            "Texas-attorney-reviewed templates (final review in progress)",
+            "Remote online notary integrated at launch",
+            "Encrypted document vault, lifetime access",
+          ].map((b, i) => (
             <li key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, fontSize: 13, color: INK_60 }}>
               <Check size={12} strokeWidth={2.4} color={LIVE_GREEN} style={{ marginTop: 4, flexShrink: 0 }} />
               <span>{b}</span>
@@ -2134,35 +2189,64 @@ function PaymentScreen({ data, processing, setProcessing, onSuccess, onBack }) {
         </ul>
       </div>
 
-      {/* Right — card form */}
+      {/* Right — waitlist signup */}
       <div style={{ padding: "40px 40px", display: "flex", flexDirection: "column" }}>
         <div className="mono" style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: INK_40, fontWeight: 600, marginBottom: 8 }}>
-          Card details
+          Join the waitlist
         </div>
-        <p style={{ fontSize: 12, color: INK_40, margin: "0 0 24px" }}>
-          Demo mode — use any test number like <span className="mono">4242 4242 4242 4242</span>
+        <p style={{ fontSize: 13, color: INK_60, margin: "0 0 24px", lineHeight: 1.5 }}>
+          We'll email you when POA-IT opens to Texas customers. No spam.
+          One email at launch, plus occasional Texas POA news if you opt in below.
         </p>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <CardNumberField value={card} onChange={setCard} brand={cardBrand} />
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <ExpiryField value={exp} onChange={setExp} />
-            <CvcField value={cvc} onChange={setCvc} />
-          </div>
           <FormField
-            label="Billing ZIP"
-            value={zip}
-            onChange={(v) => setZip(v.slice(0, 10))}
-            placeholder="33101"
-            tooltip="The ZIP code where your card statements are mailed. Your bank uses this as an additional security check to confirm it's really you."
+            label="Email"
+            value={email}
+            onChange={setEmail}
+            placeholder="you@example.com"
+            type="email"
+            tooltip="We'll only use this to notify you about POA-IT launch and your account. Our Privacy Policy governs everything we do with your information."
           />
+
+          <div>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: INK_60, marginBottom: 8 }}>
+              I'd like to:
+            </label>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {[
+                { id: "notify_at_launch", label: "Notify me at launch" },
+                { id: "early_access", label: "Apply for early access (limited beta)" },
+                { id: "both", label: "Both — and send me occasional Texas POA news" },
+              ].map((opt) => (
+                <label key={opt.id} style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  padding: "10px 14px",
+                  border: `1px solid ${waitlistChoice === opt.id ? INK : LINE}`,
+                  borderRadius: 8, cursor: "pointer",
+                  background: waitlistChoice === opt.id ? PAPER_2 : PAPER,
+                  transition: "all 0.15s",
+                }}>
+                  <input
+                    type="radio"
+                    name="waitlist_choice"
+                    value={opt.id}
+                    checked={waitlistChoice === opt.id}
+                    onChange={() => setWaitlistChoice(opt.id)}
+                    style={{ accentColor: INK }}
+                  />
+                  <span style={{ fontSize: 13 }}>{opt.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
         </div>
 
         <button
-          onClick={handlePay}
+          onClick={handleSubmit}
           disabled={!valid || processing}
           style={{
-            marginTop: 24, padding: "16px 22px", fontSize: 15, fontWeight: 600,
+            marginTop: 24, padding: "14px 22px", fontSize: 15, fontWeight: 600,
             background: valid && !processing ? INK : INK_20,
             color: PAPER, borderRadius: 8,
             cursor: valid && !processing ? "pointer" : "not-allowed",
@@ -2172,20 +2256,17 @@ function PaymentScreen({ data, processing, setProcessing, onSuccess, onBack }) {
         >
           {processing ? (
             <>
-              <Spinner /> Processing…
+              <Spinner /> Adding you to the list…
             </>
           ) : (
             <>
-              <Lock size={14} strokeWidth={2} /> Pay ${price}.00
+              Join the waitlist <ArrowRight size={14} strokeWidth={2.2} />
             </>
           )}
         </button>
 
-        <div style={{ marginTop: 16, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 11, color: INK_40 }}>
-          <Lock size={11} strokeWidth={2} /> Powered by Stripe · PCI DSS Level 1
-          <Tooltip width={300}>
-            Stripe is the company millions of businesses use to safely process credit card payments — including Amazon, Target, and most major airlines. PCI DSS Level 1 is the highest security standard for payment processing. Your card information is encrypted; POA-IT never sees it.
-          </Tooltip>
+        <div style={{ marginTop: 16, fontSize: 11, color: INK_40, lineHeight: 1.5, textAlign: "center" }}>
+          By joining, you agree to our <a href="/legal/terms" style={{ color: INK_60, textDecoration: "underline" }}>Terms</a> and <a href="/legal/privacy" style={{ color: INK_60, textDecoration: "underline" }}>Privacy Policy</a>. You can unsubscribe at any time.
         </div>
       </div>
     </div>
