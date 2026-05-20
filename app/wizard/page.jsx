@@ -5,6 +5,8 @@ import { CheckCircle2, ArrowRight } from "lucide-react";
 import { EligibilityGate } from "../../components/wizard/screens/EligibilityGate";
 import { Step1_DocumentType } from "../../components/wizard/screens/Step1_DocumentType";
 import { Step2_Principal } from "../../components/wizard/screens/Step2_Principal";
+import { Step3_Agent } from "../../components/wizard/screens/Step3_Agent";
+import { Step4_Powers } from "../../components/wizard/screens/Step4_Powers";
 import { ProgressIndicator } from "../../components/wizard/WizardShell";
 import { TOKENS, FONTS } from "../../components/wizard/shared/tokens";
 import {
@@ -249,6 +251,24 @@ function StepRouter({ state, setState }) {
     case "step2_principal":
       return (
         <Step2_Principal
+          state={state}
+          setState={setState}
+          onBack={handleBack}
+          onContinue={handleContinue}
+        />
+      );
+    case "step3_agent":
+      return (
+        <Step3_Agent
+          state={state}
+          setState={setState}
+          onBack={handleBack}
+          onContinue={handleContinue}
+        />
+      );
+    case "step4_powers":
+      return (
+        <Step4_Powers
           state={state}
           setState={setState}
           onBack={handleBack}
