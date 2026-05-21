@@ -67,7 +67,7 @@ export default function PoaItSite() {
 
   return (
     <div style={{ background: PAPER, color: INK, fontFamily: SANS, minHeight: "100vh", WebkitFontSmoothing: "antialiased" }}>
-      <style>{`
+      <style suppressHydrationWarning>{`
         @import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap');
         * { box-sizing: border-box; }
         body { background: ${PAPER}; margin: 0; -webkit-font-smoothing: antialiased; }

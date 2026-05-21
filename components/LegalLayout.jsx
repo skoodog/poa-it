@@ -19,7 +19,7 @@ export function LegalLayout({ title, lastUpdated, effectiveDate, children }) {
       background: PAPER, minHeight: "100vh", fontFamily: SANS, color: INK,
       WebkitFontSmoothing: "antialiased",
     }}>
-      <style>{`
+      <style suppressHydrationWarning>{`
         @import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap');
         * { box-sizing: border-box; }
         body { margin: 0; background: ${PAPER}; }
@@ -100,7 +100,7 @@ export function LegalLayout({ title, lastUpdated, effectiveDate, children }) {
         </div>
       </footer>
 
-      <style>{`
+      <style suppressHydrationWarning>{`
         .legal-prose h2 {
           font-size: 22px; font-weight: 600; letter-spacing: -0.02em;
           margin: 56px 0 16px; padding-top: 24px;

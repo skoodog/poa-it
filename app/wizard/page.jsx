@@ -97,7 +97,7 @@ export default function WizardPage() {
         WebkitFontSmoothing: "antialiased",
       }}
     >
-      <style>{`
+      <style suppressHydrationWarning>{`
         @import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap');
         * { box-sizing: border-box; }
         body { margin: 0; background: ${TOKENS.PAPER}; }
