@@ -1,226 +1,435 @@
-import { redirect } from "next/navigation";
-import { LogOut, ArrowRight } from "lucide-react";
-import { UserButton } from "@clerk/nextjs";
+import { Users, FileText, Plus, ArrowRight, Sparkles } from "lucide-react";
+import { eq, count } from "drizzle-orm";
+import { TopBar } from "../../components/workspace/TopBar";
+import { TOKENS, FONTS } from "../../components/wizard/shared/tokens";
 import { getCurrentUser } from "../../lib/server/auth";
+import { db } from "../../lib/db";
+import { clients, documents, wizardSessions } from "../../lib/db/schema";
 
-export default async function AppHomePage() {
+/**
+ * /app — Overview / Dashboard
+ *
+ * The workspace home. Shows a quick-glance summary of the firm's activity:
+ *   - Client count
+ *   - Document count
+ *   - Active wizard sessions
+ *   - A welcome banner for first-time users
+ *   - Quick action cards for the most common workflows
+ *
+ * As features get built across sprints, this page evolves to show real activity
+ * data. For now (Sprint 2), counts are real but most metrics will be zero
+ * since clients/documents UIs don't exist yet.
+ */
+
+export default async function AppOverviewPage() {
   const user = await getCurrentUser();
+  // Auth check happens in the layout, but we read user here for content
 
-  if (!user) redirect("/sign-in");
-  if (user.userType !== "professional") redirect("/");
-  if (!user.onboardedAt) redirect("/onboarding/professional");
+  // Quick stats — these queries will run very fast on small datasets
+  const [clientCount, documentCount, activeSessionCount] = await Promise.all([
+    user?.firmId
+      ? db
+          .select({ count: count() })
+          .from(clients)
+          .where(eq(clients.firmId, user.firmId))
+          .then((r) => r[0]?.count || 0)
+      : Promise.resolve(0),
+    user?.firmId
+      ? db
+          .select({ count: count() })
+          .from(documents)
+          .where(eq(documents.firmId, user.firmId))
+          .then((r) => r[0]?.count || 0)
+      : Promise.resolve(0),
+    user?.firmId
+      ? db
+          .select({ count: count() })
+          .from(wizardSessions)
+          .where(eq(wizardSessions.firmId, user.firmId))
+          .then((r) => r[0]?.count || 0)
+      : Promise.resolve(0),
+  ]);
 
-  const TOKENS = {
-    PAPER: "#FFFFFF",
-    PAPER_2: "#FAFAFA",
-    INK: "#0A0A0A",
-    INK_60: "#52525B",
-    INK_40: "#71717A",
-    INK_20: "#A1A1AA",
-    LINE: "#E4E4E7",
-    ACCENT: "#2563EB",
-    LIVE_GREEN: "#10B981",
-  };
+  const isFirstTime = clientCount === 0 && documentCount === 0;
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: TOKENS.PAPER,
-        fontFamily: "'Geist', 'Inter', -apple-system, system-ui, sans-serif",
-      }}
-    >
-      {/* Top bar */}
-      <header
-        style={{
-          borderBottom: `1px solid ${TOKENS.LINE}`,
-          padding: "14px 32px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <a
-            href="/"
-            style={{
-              fontSize: 18,
-              fontWeight: 600,
-              letterSpacing: "-0.02em",
-              color: TOKENS.INK,
-              textDecoration: "none",
-            }}
-          >
-            poa-it
-          </a>
-          <div
-            style={{
-              fontSize: 11,
-              fontFamily: "'Geist Mono', ui-monospace, monospace",
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-              color: TOKENS.INK_60,
-              fontWeight: 600,
-              padding: "3px 8px",
-              background: TOKENS.PAPER_2,
-              borderRadius: 4,
-            }}
-          >
-            {user.firm?.name || "Workspace"}
-          </div>
-        </div>
-        <UserButton afterSignOutUrl="/" />
-      </header>
+    <>
+      <TopBar
+        title={`Welcome back, ${user?.firstName || "friend"}.`}
+        subtitle={`Here's what's happening at ${user?.firm?.name || "your workspace"}.`}
+      />
 
-      {/* Main content */}
-      <main
-        style={{
-          maxWidth: 760,
-          margin: "0 auto",
-          padding: "60px 32px",
-        }}
-      >
+      <div style={{ padding: "28px 32px 60px", maxWidth: 1080 }}>
+        {isFirstTime && <WelcomeBanner firmName={user?.firm?.name} />}
+
+        {/* Stats row */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: 14,
+            marginBottom: 28,
+            fontFamily: FONTS.SANS,
+          }}
+        >
+          <StatCard
+            label="Clients"
+            value={clientCount}
+            sublabel="active in your workspace"
+            icon={Users}
+          />
+          <StatCard
+            label="Documents"
+            value={documentCount}
+            sublabel="created across all clients"
+            icon={FileText}
+          />
+          <StatCard
+            label="Active sessions"
+            value={activeSessionCount}
+            sublabel="wizard sessions in progress"
+            icon={Sparkles}
+          />
+        </div>
+
+        {/* Quick actions */}
+        <SectionHeader title="Quick actions" />
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+            gap: 14,
+            marginBottom: 28,
+          }}
+        >
+          <ActionCard
+            href="/app/clients"
+            icon={Plus}
+            title="Add a client"
+            description="Create a new client record to start their POA process."
+            ctaLabel="Open clients"
+            disabled
+            disabledReason="Available in Sprint 3"
+          />
+          <ActionCard
+            href="/wizard"
+            icon={Sparkles}
+            title="Walk the wizard"
+            description="Preview the client-facing experience. See exactly what your clients see."
+            ctaLabel="Open wizard"
+          />
+          <ActionCard
+            href="/app/settings"
+            icon={ArrowRight}
+            title="Customize branding"
+            description="Add your firm's logo and contact info so client emails feel like yours."
+            ctaLabel="Open settings"
+          />
+        </div>
+
+        {/* Roadmap card */}
+        <SectionHeader title="What's building" />
         <div
           style={{
             background: TOKENS.PAPER_2,
             border: `1px solid ${TOKENS.LINE}`,
-            borderRadius: 12,
-            padding: "36px 36px",
+            borderRadius: 10,
+            padding: "20px 24px",
+            fontFamily: FONTS.SANS,
           }}
         >
-          <div
+          <ul
             style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              background: TOKENS.LIVE_GREEN,
-              color: TOKENS.PAPER,
-              padding: "3px 10px",
-              borderRadius: 100,
-              fontSize: 10,
-              fontWeight: 600,
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-              marginBottom: 18,
+              margin: 0,
+              padding: 0,
+              listStyle: "none",
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
             }}
           >
-            Account ready
-          </div>
-
-          <h1
-            style={{
-              fontSize: 30,
-              fontWeight: 600,
-              letterSpacing: "-0.025em",
-              margin: "0 0 12px",
-              lineHeight: 1.15,
-              color: TOKENS.INK,
-            }}
-          >
-            Welcome to {user.firm?.name || "your workspace"},{" "}
-            {user.firstName || "friend"}.
-          </h1>
-          <p style={{ fontSize: 15, color: TOKENS.INK_60, lineHeight: 1.55, margin: "0 0 24px" }}>
-            Your professional account is set up. The workspace UI (client list,
-            document tracking, billing) is building out over the next two
-            sprints. In the meantime, your account is reserved and your data
-            is being persisted.
-          </p>
-
-          <div
-            style={{
-              background: TOKENS.PAPER,
-              border: `1px solid ${TOKENS.LINE}`,
-              borderRadius: 10,
-              padding: "20px 22px",
-              marginBottom: 20,
-            }}
-          >
-            <div
-              style={{
-                fontSize: 11,
-                fontFamily: "'Geist Mono', ui-monospace, monospace",
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                color: TOKENS.INK_40,
-                fontWeight: 600,
-                marginBottom: 12,
-              }}
-            >
-              Coming in upcoming sprints
-            </div>
-            <ul
-              style={{
-                margin: 0,
-                padding: 0,
-                listStyle: "none",
-                display: "flex",
-                flexDirection: "column",
-                gap: 10,
-              }}
-            >
-              <BuildItem label="Sprint 2" item="Professional workspace shell with client list, documents, audit, billing nav" />
-              <BuildItem label="Sprint 3" item="Client management — create, search, profile pages, intake flows" />
-              <BuildItem label="Sprint 4" item="PDF generation for the Texas POA" />
-              <BuildItem label="Sprint 5" item="Two intake flows: fill-for-client, send-link-to-client" />
-              <BuildItem label="Sprint 6" item="Stripe Checkout (consumer) + subscriptions (professional)" />
-              <BuildItem label="Sprint 7" item="Proof RON integration + email orchestration" />
-            </ul>
-          </div>
-
-          <a
-            href="/wizard"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "12px 20px",
-              fontSize: 14,
-              fontWeight: 600,
-              background: TOKENS.INK,
-              color: TOKENS.PAPER,
-              borderRadius: 8,
-              textDecoration: "none",
-            }}
-          >
-            Walk the wizard <ArrowRight size={13} strokeWidth={2.4} />
-          </a>
+            <RoadmapItem
+              sprint="Sprint 3"
+              status="next"
+              item="Client management — create, search, profile pages"
+            />
+            <RoadmapItem
+              sprint="Sprint 4"
+              status="planned"
+              item="PDF generation for the Texas POA"
+            />
+            <RoadmapItem
+              sprint="Sprint 5"
+              status="planned"
+              item="Two intake flows: fill-for-client and send-link-to-client"
+            />
+            <RoadmapItem
+              sprint="Sprint 6"
+              status="planned"
+              item="Stripe Checkout for consumers and subscriptions for firms"
+            />
+            <RoadmapItem
+              sprint="Sprint 7"
+              status="planned"
+              item="Proof RON integration and email orchestration"
+            />
+          </ul>
         </div>
-      </main>
+      </div>
+    </>
+  );
+}
+
+function WelcomeBanner({ firmName }) {
+  return (
+    <div
+      style={{
+        background: TOKENS.PAPER_2,
+        border: `1px solid ${TOKENS.LINE}`,
+        borderLeft: `3px solid ${TOKENS.ACCENT}`,
+        borderRadius: 10,
+        padding: "20px 24px",
+        marginBottom: 28,
+        fontFamily: FONTS.SANS,
+      }}
+    >
+      <div
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          background: TOKENS.LIVE_GREEN,
+          color: TOKENS.PAPER,
+          padding: "3px 10px",
+          borderRadius: 100,
+          fontSize: 10,
+          fontWeight: 600,
+          letterSpacing: "0.06em",
+          textTransform: "uppercase",
+          marginBottom: 12,
+        }}
+      >
+        <Sparkles size={11} strokeWidth={2.4} />
+        New workspace
+      </div>
+      <h2
+        style={{
+          fontSize: 18,
+          fontWeight: 600,
+          letterSpacing: "-0.015em",
+          margin: "0 0 6px",
+          color: TOKENS.INK,
+        }}
+      >
+        {firmName} is ready to go.
+      </h2>
+      <p style={{ fontSize: 14, color: TOKENS.INK_60, lineHeight: 1.55, margin: 0 }}>
+        Your workspace is set up. The client management features are building over
+        the next few sprints. In the meantime, walk the consumer wizard yourself to
+        see what your clients will experience, and customize your branding in
+        Settings so emails feel like yours.
+      </p>
     </div>
   );
 }
 
-function BuildItem({ label, item }) {
-  const TOKENS = {
-    PAPER_2: "#FAFAFA",
-    INK: "#0A0A0A",
-    INK_60: "#52525B",
-    INK_40: "#71717A",
-    LINE: "#E4E4E7",
+function StatCard({ label, value, sublabel, icon: Icon }) {
+  return (
+    <div
+      style={{
+        background: TOKENS.PAPER,
+        border: `1px solid ${TOKENS.LINE}`,
+        borderRadius: 10,
+        padding: "18px 20px",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          marginBottom: 10,
+        }}
+      >
+        <Icon size={14} strokeWidth={1.8} color={TOKENS.INK_60} />
+        <div
+          style={{
+            fontSize: 11,
+            fontFamily: FONTS.MONO,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            color: TOKENS.INK_40,
+            fontWeight: 600,
+          }}
+        >
+          {label}
+        </div>
+      </div>
+      <div
+        style={{
+          fontSize: 32,
+          fontWeight: 600,
+          letterSpacing: "-0.025em",
+          color: TOKENS.INK,
+          lineHeight: 1,
+          marginBottom: 6,
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {value}
+      </div>
+      <div style={{ fontSize: 12, color: TOKENS.INK_60, lineHeight: 1.4 }}>
+        {sublabel}
+      </div>
+    </div>
+  );
+}
+
+function ActionCard({ href, icon: Icon, title, description, ctaLabel, disabled, disabledReason }) {
+  const Tag = disabled ? "div" : "a";
+  return (
+    <Tag
+      href={disabled ? undefined : href}
+      style={{
+        display: "block",
+        background: TOKENS.PAPER,
+        border: `1px solid ${TOKENS.LINE}`,
+        borderRadius: 10,
+        padding: "18px 20px",
+        textDecoration: "none",
+        color: "inherit",
+        opacity: disabled ? 0.6 : 1,
+        cursor: disabled ? "not-allowed" : "pointer",
+        transition: "all 0.15s",
+        fontFamily: FONTS.SANS,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 10 }}>
+        <div
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 8,
+            background: TOKENS.PAPER_2,
+            color: TOKENS.INK_60,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          <Icon size={16} strokeWidth={1.8} />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
+            style={{
+              fontSize: 15,
+              fontWeight: 600,
+              color: TOKENS.INK,
+              letterSpacing: "-0.01em",
+              marginBottom: 2,
+            }}
+          >
+            {title}
+          </div>
+        </div>
+      </div>
+      <div
+        style={{
+          fontSize: 13,
+          color: TOKENS.INK_60,
+          lineHeight: 1.5,
+          marginBottom: 14,
+        }}
+      >
+        {description}
+      </div>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          fontSize: 13,
+          fontWeight: 600,
+          color: disabled ? TOKENS.INK_40 : TOKENS.INK,
+        }}
+      >
+        {ctaLabel}
+        {!disabled && <ArrowRight size={13} strokeWidth={2.4} />}
+      </div>
+      {disabled && disabledReason && (
+        <div
+          style={{
+            marginTop: 10,
+            fontSize: 11,
+            color: TOKENS.INK_40,
+            fontStyle: "italic",
+          }}
+        >
+          {disabledReason}
+        </div>
+      )}
+    </Tag>
+  );
+}
+
+function SectionHeader({ title }) {
+  return (
+    <div
+      style={{
+        fontSize: 11,
+        fontFamily: FONTS.MONO,
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        color: TOKENS.INK_40,
+        fontWeight: 600,
+        marginBottom: 12,
+        marginTop: 4,
+      }}
+    >
+      {title}
+    </div>
+  );
+}
+
+function RoadmapItem({ sprint, status, item }) {
+  const statusColors = {
+    next: { bg: TOKENS.LIVE_GREEN, text: TOKENS.PAPER },
+    planned: { bg: TOKENS.LINE, text: TOKENS.INK_60 },
+    done: { bg: TOKENS.LIVE_GREEN, text: TOKENS.PAPER },
   };
+  const c = statusColors[status] || statusColors.planned;
 
   return (
     <li style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
       <div
         style={{
           fontSize: 10,
-          fontFamily: "'Geist Mono', ui-monospace, monospace",
-          color: TOKENS.INK_40,
-          fontWeight: 600,
+          fontFamily: FONTS.MONO,
           letterSpacing: "0.05em",
-          background: TOKENS.PAPER_2,
+          textTransform: "uppercase",
+          fontWeight: 700,
+          color: c.text,
+          background: c.bg,
           padding: "3px 8px",
           borderRadius: 4,
           flexShrink: 0,
           marginTop: 1,
+          minWidth: 70,
+          textAlign: "center",
         }}
       >
-        {label.toUpperCase()}
+        {sprint}
       </div>
-      <div style={{ flex: 1, fontSize: 13, color: TOKENS.INK_60, lineHeight: 1.5 }}>
+      <span
+        style={{
+          fontSize: 13,
+          color: TOKENS.INK_60,
+          lineHeight: 1.5,
+        }}
+      >
         {item}
-      </div>
+      </span>
     </li>
   );
 }
