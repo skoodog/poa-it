@@ -23,10 +23,15 @@ const HOME_EQUITY_WARNING =
   "DOCUMENTS ON YOUR BEHALF, THIS POWER OF ATTORNEY MUST BE SIGNED BY YOU " +
   "AT THE OFFICE OF THE LENDER, AN ATTORNEY AT LAW, OR A TITLE COMPANY.";
 
-const AGENT_SELECTION_GUIDANCE =
+const AGENT_SELECTION_GUIDANCE_INTRO =
   "You should select someone you trust to serve as your agent. Unless you " +
-  "specify otherwise, generally the agent's authority will continue until you " +
-  "die or revoke the power of attorney or the agent resigns or is unable to act for you.";
+  "specify otherwise, generally the agent's authority will continue until:";
+
+const AGENT_TERMINATION_EVENTS = [
+  "you die or revoke the power of attorney;",
+  "your agent resigns, is removed by court order, or is unable to act for you; or",
+  "a guardian is appointed for your estate.",
+];
 
 export function Header() {
   return (
@@ -37,7 +42,15 @@ export function Header() {
 
       <Text style={styles.notice}>{HOME_EQUITY_WARNING}</Text>
 
-      <Text style={styles.body}>{AGENT_SELECTION_GUIDANCE}</Text>
+      <Text style={styles.body}>{AGENT_SELECTION_GUIDANCE_INTRO}</Text>
+
+      <View style={{ marginLeft: 18, marginBottom: 6 }}>
+        {AGENT_TERMINATION_EVENTS.map((event, idx) => (
+          <Text key={idx} style={[styles.bodyTight, { marginBottom: 2 }]}>
+            ({idx + 1})  {event}
+          </Text>
+        ))}
+      </View>
     </View>
   );
 }

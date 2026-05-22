@@ -1,23 +1,20 @@
 /**
- * Designation section: principal + agent identification.
+ * Designation section: principal + agent + successor agent identification.
  *
- * Sprint 4b changes:
- *   - Successor agent moved to StatutoryProvisions component
- *     (rendered later in the document with statutory wording from § 752.051).
- *   - formatAddress hardened against state-duplication bug (item 4b-10).
+ * Sprint 4b.1 Round 2 changes:
+ *   - Successor agent now rendered as a clean field block matching the
+ *     primary agent layout (Name / Address / Phone / Email) per attorney
+ *     guidance: "use the same clean field structure as the primary agent."
+ *   - The statutory paragraph form of the successor designation is
+ *     preserved per § 752.051 wording, but appears as preamble TEXT above
+ *     the field block (not embedded in dense paragraph).
  *
- * Per § 752.051 the principal-and-agent designation appears as a single
- * paragraph: "I, [name + address], appoint [name + address] as my agent
- * to act for me in any lawful way with respect to all of the following
- * powers that I have initialed below."
- *
- * We expand this slightly to display the agent's contact info (phone)
- * because real-world institutional acceptance typically wants the
- * agent's phone for verification.
+ * Per § 752.051 the principal-and-agent designation paragraph is:
+ *   "I, [name + address], appoint [name + address] as my agent..."
  */
 
 import { View, Text } from "@react-pdf/renderer";
-import { styles, SIZES } from "../styles";
+import { styles, SIZES, COLORS } from "../styles";
 
 export function Designation({ wizardState }) {
   const principalName = wizardState.principalFullLegalName || "____________";
@@ -36,6 +33,20 @@ export function Designation({ wizardState }) {
     zip: wizardState.agentZip,
   });
   const agentPhone = wizardState.agentPhone || "____________";
+  const agentEmail = wizardState.agentEmail || "";
+
+  const hasSuccessor = !!wizardState.successorAgentFullLegalName;
+  const successorName = wizardState.successorAgentFullLegalName || "";
+  const successorAddress = hasSuccessor
+    ? formatAddress({
+        addr: wizardState.successorAgentAddress,
+        city: wizardState.successorAgentCity,
+        state: wizardState.successorAgentState || "Texas",
+        zip: wizardState.successorAgentZip,
+      })
+    : "";
+  const successorPhone = wizardState.successorAgentPhone || "";
+  const successorEmail = wizardState.successorAgentEmail || "";
 
   return (
     <View>
@@ -50,31 +61,91 @@ export function Designation({ wizardState }) {
         way with respect to all of the powers that I have initialed below.
       </Text>
 
-      <View style={{ marginLeft: 24, marginBottom: SIZES.PARA_SPACING }}>
-        <Text style={styles.bodyTight}>
-          <Text style={styles.bold}>Name of Agent: </Text>
-          <Text style={styles.fieldValue}>{agentName}</Text>
-        </Text>
-        <Text style={styles.bodyTight}>
-          <Text style={styles.bold}>Agent's Address: </Text>
-          <Text style={styles.fieldValue}>{agentAddress}</Text>
-        </Text>
-        <Text style={styles.bodyTight}>
-          <Text style={styles.bold}>Agent's Telephone Number: </Text>
-          <Text style={styles.fieldValue}>{agentPhone}</Text>
-        </Text>
-      </View>
+      <AgentFieldBlock
+        name={agentName}
+        address={agentAddress}
+        phone={agentPhone}
+        email={agentEmail}
+        labelPrefix="Agent's"
+      />
+
+      {/* Successor Agent block — clean field structure per attorney guidance */}
+      <Text style={[styles.sectionHeading, { marginTop: SIZES.SECTION_SPACING }]}>
+        Designation of Successor Agent (Optional)
+      </Text>
+
+      <Text style={styles.body}>
+        If any agent named by me dies, becomes incapacitated, resigns, refuses
+        to act, or is removed by court order, or if my marriage to an agent
+        named by me is dissolved by a court decree of divorce or annulment or
+        is declared void by a court (unless I provided in this document that
+        the dissolution or declaration does not terminate the agent's
+        authority to act under this power of attorney), I name the following
+        as successor agent to that agent:
+      </Text>
+
+      {hasSuccessor ? (
+        <AgentFieldBlock
+          name={successorName}
+          address={successorAddress}
+          phone={successorPhone}
+          email={successorEmail}
+          labelPrefix="Successor Agent's"
+        />
+      ) : (
+        <View
+          style={{
+            padding: 10,
+            borderLeftWidth: 2,
+            borderLeftColor: "#999999",
+            marginBottom: SIZES.PARA_SPACING,
+          }}
+        >
+          <Text style={[styles.bodyTight, styles.italic, { fontSize: 10.5 }]}>
+            No successor agent is named.
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
 
 /**
- * Format an address from component fields into a single display string.
+ * Render an agent's field block. Used for both primary agent and successor.
  *
- * Sprint 4b — item 4b-10: hardened against state-duplication bug.
- * If a user accidentally typed the state into the city field
- * ("Houston, TX") or address field, our explicit `state: "Texas"`
- * append would double the state. Now we detect and skip duplicates.
+ * Layout:
+ *   Name of Agent: [name]
+ *   Address: [address]
+ *   Telephone Number: [phone]
+ *   Email (optional): [email]  ← only shown when provided
+ */
+function AgentFieldBlock({ name, address, phone, email, labelPrefix }) {
+  return (
+    <View style={{ marginLeft: 24, marginBottom: SIZES.PARA_SPACING }}>
+      <Text style={styles.bodyTight}>
+        <Text style={styles.bold}>Name of {labelPrefix === "Agent's" ? "Agent" : "Successor Agent"}: </Text>
+        <Text style={styles.fieldValue}>{name}</Text>
+      </Text>
+      <Text style={styles.bodyTight}>
+        <Text style={styles.bold}>{labelPrefix} Address: </Text>
+        <Text style={styles.fieldValue}>{address}</Text>
+      </Text>
+      <Text style={styles.bodyTight}>
+        <Text style={styles.bold}>{labelPrefix} Telephone Number: </Text>
+        <Text style={styles.fieldValue}>{phone}</Text>
+      </Text>
+      {email ? (
+        <Text style={styles.bodyTight}>
+          <Text style={styles.bold}>{labelPrefix} Email (optional): </Text>
+          <Text style={styles.fieldValue}>{email}</Text>
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
+/**
+ * Format an address from component fields. Hardened against state-duplication.
  */
 function formatAddress({ addr, city, state, zip }) {
   const parts = [];

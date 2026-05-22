@@ -1,63 +1,55 @@
 /**
  * Signature + Notary Acknowledgment section.
  *
- * Sprint 4b changes:
- *   - Two clearly-separate notary certificate variants: RON and in-person.
- *   - County of acknowledgment is BLANK in both cases (per attorney —
- *     this is the notary's venue, not the principal's residence county,
- *     and is properly filled by the notary at execution time).
- *   - RON variant uses statutory online-notarization language per
- *     Tex. Gov't Code Ch. 406 Subch. C.
- *   - In-person variant uses standard Texas acknowledgment per
- *     Tex. Gov't Code § 121.007.
- *   - Removed the principal-county auto-fill we did in the recent
- *     PDF cleanup patch — that was wrong (principal address county !=
- *     notary acknowledgment venue).
+ * Sprint 4b.1 Round 2 changes:
+ *   - Added printed-name line + explicit date line per attorney guidance:
+ *     "include: Signature of Principal / Printed Name of Principal / Date"
+ *   - Notary acknowledgment variants more clearly labeled (Texas in-person
+ *     vs Texas online notarization)
+ *   - For RON variant, "State of Texas" is pre-populated as venue since
+ *     the Texas online notary must be physically located in Texas at the
+ *     time of notarization
+ *   - The notary's county remains blank (filled by notary at execution time)
  *
- * Re: § 406.103 citation that your attorney flagged — Tex. Gov't Code
- * § 406.103 covers signing requirements for traditional notarial certificates.
- * The RON-specific statutory framework lives in § 406.101 (definitions),
- * § 406.103 (online notary commission), § 406.108 (online notarization
- * authority and process), and § 406.109 (electronic seal/signature
- * requirements). The cleanest correct citation here is § 406.108, which
- * defines the online notarization act itself.
+ * The Agent Fiduciary Notice and Liability Notice have been moved to the
+ * full ImportantInformationForAgent section (per attorney "add full agent-
+ * information section" requirement). This signature section is now focused
+ * solely on execution mechanics.
  */
 
 import { View, Text } from "@react-pdf/renderer";
 import { styles, COLORS, SIZES } from "../styles";
-
-const AGENT_FIDUCIARY_NOTICE =
-  "THE AGENT, BY ACCEPTING OR ACTING UNDER THE APPOINTMENT, ASSUMES THE " +
-  "FIDUCIARY AND OTHER LEGAL RESPONSIBILITIES OF AN AGENT.";
-
-const DURABLE_POA_LIABILITY_NOTICE =
-  "The authority granted to you under this power of attorney is specified in " +
-  "the Durable Power of Attorney Act (Subtitle P, Title 2, Estates Code). If " +
-  "you violate the Durable Power of Attorney Act or act beyond the authority " +
-  "granted, you may be liable for any damages caused by the violation or subject " +
-  "to prosecution for misapplication of property by a fiduciary under Chapter 32 " +
-  "of the Texas Penal Code.";
 
 export function Signature({ wizardState }) {
   const principalName = wizardState.principalFullLegalName || "____________";
 
   return (
     <View>
-      <Text style={styles.body}>{DURABLE_POA_LIABILITY_NOTICE}</Text>
-      <Text style={[styles.notice, { fontFamily: "Times-Bold" }]}>
-        {AGENT_FIDUCIARY_NOTICE}
-      </Text>
-
       <View wrap={false} style={{ marginTop: SIZES.SECTION_SPACING }}>
         <Text style={styles.body}>
           Signed this _____ day of _________________, ________.
         </Text>
 
+        {/* Signature line */}
         <View style={{ marginTop: 18 }}>
           <View style={styles.sigLine} />
           <Text style={styles.sigLineLabel}>
-            Signature of Principal — {principalName}
+            Signature of Principal
           </Text>
+        </View>
+
+        {/* Printed name line — required by attorney */}
+        <View>
+          <View style={styles.sigLine} />
+          <Text style={styles.sigLineLabel}>
+            Printed Name of Principal — {principalName}
+          </Text>
+        </View>
+
+        {/* Date line — required by attorney; lockable at execution */}
+        <View>
+          <View style={[styles.sigLine, { width: 220 }]} />
+          <Text style={styles.sigLineLabel}>Date</Text>
         </View>
       </View>
 
@@ -69,6 +61,7 @@ export function Signature({ wizardState }) {
 function NotaryBlock({ wizardState }) {
   const principalName = wizardState.principalFullLegalName || "____________";
   const executionMethod = wizardState.executionMethod || "ron";
+  const isRON = executionMethod === "ron";
 
   return (
     <View
@@ -80,30 +73,53 @@ function NotaryBlock({ wizardState }) {
         borderTopColor: COLORS.RULE,
       }}
     >
+      {/* Variant label so the reader immediately knows which packet
+          this acknowledgment block belongs to */}
+      <Text
+        style={{
+          fontFamily: "Helvetica-Bold",
+          fontSize: 9,
+          letterSpacing: 0.6,
+          textTransform: "uppercase",
+          color: COLORS.GRAY,
+          marginBottom: 6,
+        }}
+      >
+        {isRON
+          ? "Texas Online Notarization — Acknowledgment"
+          : "Texas In-Person Notarization — Acknowledgment"}
+      </Text>
+
       <Text style={styles.sectionHeading}>Acknowledgment</Text>
 
-      {/* State and county are BLANK — the notary fills these at execution
-          time. The notary's county may not match the principal's county. */}
-      <Text style={styles.bodyTight}>State of __________________________</Text>
+      {/* Venue — for RON, default to Texas (statutory requirement that online
+          notary be physically located in Texas). For in-person, leave blank
+          so the notary's actual location can be entered. */}
+      {isRON ? (
+        <Text style={styles.bodyTight}>
+          <Text style={styles.bold}>State of Texas</Text>
+        </Text>
+      ) : (
+        <Text style={styles.bodyTight}>State of __________________________</Text>
+      )}
+
       <Text style={[styles.bodyTight, { marginBottom: SIZES.PARA_SPACING }]}>
         County of _________________________
       </Text>
 
-      {executionMethod === "ron" ? (
-        // RON variant — exact online-notarization statutory framing
+      {isRON ? (
         <Text style={styles.body}>
-          This document was acknowledged before me by means of an interactive
-          two-way audio and video communication that meets the online
-          notarization requirements under Subchapter C, Chapter 406, Texas
-          Government Code, and rules adopted under that subchapter, on
-          ________________ (date) by{" "}
+          This notarial act was an online notarization. This document was
+          acknowledged before me by means of an interactive two-way audio and
+          video communication that meets the online notarization requirements
+          under Subchapter C, Chapter 406, Texas Government Code, and rules
+          adopted under that subchapter, on ________________ (date) by{" "}
           <Text style={styles.fieldValue}>{principalName}</Text>.
         </Text>
       ) : (
-        // In-person variant — standard Texas acknowledgment language
         <Text style={styles.body}>
-          This instrument was acknowledged before me on ________________ (date) by{" "}
-          <Text style={styles.fieldValue}>{principalName}</Text>.
+          This instrument was acknowledged before me on ________________ (date)
+          by <Text style={styles.fieldValue}>{principalName}</Text>.
         </Text>
       )}
 
@@ -122,7 +138,7 @@ function NotaryBlock({ wizardState }) {
         <Text style={styles.sigLineLabel}>My Commission Expires</Text>
       </View>
 
-      {executionMethod !== "ron" && (
+      {!isRON && (
         <View
           style={{
             marginTop: 8,
@@ -140,7 +156,7 @@ function NotaryBlock({ wizardState }) {
         </View>
       )}
 
-      {executionMethod === "ron" && (
+      {isRON && (
         <View
           style={{
             marginTop: 12,
@@ -151,12 +167,11 @@ function NotaryBlock({ wizardState }) {
           }}
         >
           <Text style={[styles.bodyTight, styles.italic, { fontSize: 9.5 }]}>
-            This notarial act was an online notarization. The electronic
-            signature and seal of the online notary public are attached to and
-            incorporated into this document by the online notarization platform
-            pursuant to Tex. Gov't Code § 406.108 and § 406.109, together with
-            the certificate of completion required under applicable Texas
-            Secretary of State rules.
+            The electronic signature and seal of the online notary public are
+            attached to and incorporated into this document by the online
+            notarization platform pursuant to Tex. Gov't Code § 406.108 and
+            § 406.109, together with the certificate of completion required
+            under applicable Texas Secretary of State rules.
           </Text>
         </View>
       )}

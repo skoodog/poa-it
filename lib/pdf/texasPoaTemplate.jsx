@@ -24,9 +24,11 @@ import { Header } from "./sections/Header";
 import { Designation } from "./sections/Designation";
 import { Powers } from "./sections/Powers";
 import { HotPowers } from "./sections/HotPowers";
+import { SpecialInstructionsAndTaxLimitation } from "./sections/SpecialInstructionsAndTaxLimitation";
 import { EffectiveDate } from "./sections/EffectiveDate";
 import { StatutoryProvisions } from "./sections/StatutoryProvisions";
 import { Signature } from "./sections/Signature";
+import { ImportantInformationForAgent } from "./sections/ImportantInformationForAgent";
 import { Watermark } from "./sections/Watermark";
 
 function getLogoUrl() {
@@ -53,14 +55,16 @@ export function TexasPoaDocument({ wizardState, watermarked = true }) {
       <Page size="LETTER" style={styles.page}>
         {watermarked && <Watermark />}
 
-        {/* Section order matches § 752.051 canonical structure */}
+        {/* Section order matches § 752.051 + § 752.052 canonical structure */}
         <Header />
         <Designation wizardState={wizardState} />
         <Powers wizardState={wizardState} watermarked={watermarked} />
         <HotPowers wizardState={wizardState} watermarked={watermarked} />
+        <SpecialInstructionsAndTaxLimitation wizardState={wizardState} />
         <EffectiveDate wizardState={wizardState} />
-        <StatutoryProvisions wizardState={wizardState} />
+        <StatutoryProvisions />
         <Signature wizardState={wizardState} />
+        <ImportantInformationForAgent />
 
         <PoweredByMark logoUrl={logoUrl} />
         <PageNumber />

@@ -1,34 +1,44 @@
 /**
- * Hot Powers section — separate authorities requiring express grant under
- * Tex. Est. Code § 751.031(b).
+ * Grant of Specific Authority — verbatim Tex. Est. Code § 752.052 module.
  *
- * Sprint 4b.1 Round 1 — applies the visible-initials + draft state language
- * pattern to hot powers (matches Powers section behavior).
+ * Sprint 4b.1 Round 2 — full restoration per attorney guidance:
+ *   "Include the full § 752.052 optional module exactly or substantially
+ *    exactly; or omit the 'Grant of Specific Authority' section entirely
+ *    unless your product is intentionally offering one or more of those
+ *    powers. Do not show a partial 'Grant of Specific Authority' section
+ *    without the statutory caution language."
  *
- * Note: this is the LIGHTWEIGHT Round 1 version. Round 2 will rebuild this
- * as a full § 752.052 module rendering all five specific authorities with
- * the statutory caution language. For Round 1, we apply the visible-initials
- * pattern to whatever subset the wizard captured.
+ * This section renders the full statutory module: all five specific
+ * authorities in the statutory order, the statutory CAUTION language, and
+ * visible initials beside selected powers (matching the visible-initials
+ * pattern from Round 1).
  *
- * Hot powers list per § 751.031(b):
- *   1. Make a gift (per § 751.032 limitations)
- *   2. Create, amend, revoke, or terminate an inter vivos trust
+ * STATUTORY SOURCE
+ *   Tex. Est. Code § 752.052 (verified May 26, 2025 via texas.public.law)
+ *
+ * STATUTORY ORDER (do not reorder without attorney sign-off):
+ *   1. Create, amend, revoke, or terminate an inter vivos trust
+ *   2. Make a gift (per § 751.032 limitations + special instructions)
  *   3. Create or change rights of survivorship
  *   4. Create or change a beneficiary designation
- *   5. Authorize another person to exercise authority under this POA
+ *   5. Authorize another person to exercise authority granted
  */
 
 import { View, Text } from "@react-pdf/renderer";
 import { styles, SIZES, COLORS } from "../styles";
 
-const HOT_POWERS = [
-  {
-    key: "hot_power_gifts_default_limited",
-    text: "Make a gift, subject to the limitations of Section 751.032 of the Durable Power of Attorney Act, unless I direct otherwise in a special instruction.",
-  },
+// Statutory order per § 752.052. Wizard state keys for backward compat.
+const SPECIFIC_AUTHORITIES = [
   {
     key: "hot_power_create_amend_trust",
     text: "Create, amend, revoke, or terminate an inter vivos trust.",
+  },
+  {
+    key: "hot_power_gifts_default_limited",
+    text:
+      "Make a gift, subject to the limitations of Section 751.032 of the " +
+      "Durable Power of Attorney Act (Section 751.032, Estates Code) and any " +
+      "special instructions in this power of attorney.",
   },
   {
     key: "hot_power_rights_of_survivorship",
@@ -44,56 +54,79 @@ const HOT_POWERS = [
   },
 ];
 
+const STATUTORY_CAUTION =
+  "(CAUTION: Granting any of the following will give your agent the " +
+  "authority to take actions that could significantly reduce your property " +
+  "or change how your property is distributed at your death. INITIAL ONLY " +
+  "the specific authority you WANT to give your agent. If you DO NOT want " +
+  "to grant your agent one or more of the following powers, you may also " +
+  "CROSS OUT a power you DO NOT want to grant.)";
+
 export function HotPowers({ wizardState, watermarked = true }) {
   const granted = new Set(wizardState.hotPowersGranted || []);
   const initials = getInitials(wizardState.principalFullLegalName);
-  const grantedPowers = HOT_POWERS.filter((p) => granted.has(p.key));
-  const anyGranted = grantedPowers.length > 0;
+  const anyGranted = SPECIFIC_AUTHORITIES.some((p) => granted.has(p.key));
 
   return (
     <View>
-      <Text style={styles.sectionHeading}>Grant of Specific Authority</Text>
+      <Text style={styles.sectionHeading}>
+        Grant of Specific Authority (Optional)
+      </Text>
 
       <Text style={[styles.body, { fontFamily: "Times-Bold" }]}>
-        FAILURE TO INITIAL ANY LINE BELOW MEANS YOUR AGENT WILL NOT HAVE THE
-        AUTHORITY DESCRIBED IN THAT LINE.
+        My agent MAY NOT do any of the following specific acts for me UNLESS I
+        have INITIALED the specific authority listed below:
       </Text>
 
-      <Text style={styles.body}>
-        My agent MAY NOT do any of the following acts for me UNLESS I have
-        INITIALED the specific authority listed below:
-      </Text>
+      {/* Statutory CAUTION block — verbatim from § 752.052. Set apart visually
+          to match its emphatic role in the form. */}
+      <View
+        style={{
+          padding: 10,
+          borderWidth: 0.75,
+          borderColor: COLORS.INK,
+          marginBottom: SIZES.PARA_SPACING,
+        }}
+      >
+        <Text style={[styles.bodyTight, { fontFamily: "Times-Bold", fontSize: 10.5 }]}>
+          {STATUTORY_CAUTION}
+        </Text>
+      </View>
 
-      {anyGranted ? (
-        // Render only the granted hot powers, with visible initials
-        <View style={{ marginBottom: SIZES.PARA_SPACING }}>
-          {grantedPowers.map((power, idx) => (
-            <View key={power.key} style={styles.powerRow} wrap={false}>
-              <InitialMark hasSelection={true} initials={initials} watermarked={watermarked} />
-              <Text style={styles.letterLabel}>({idx + 1})</Text>
-              <Text style={styles.powerText}>{power.text}</Text>
-            </View>
-          ))}
-        </View>
-      ) : (
-        // No hot powers granted — clean definitive statement
+      {/* The five specific authorities — always shown, regardless of whether
+          any were granted. Visible initials beside any granted. */}
+      <View style={{ marginBottom: SIZES.PARA_SPACING }}>
+        {SPECIFIC_AUTHORITIES.map((authority) => (
+          <View key={authority.key} style={styles.powerRow} wrap={false}>
+            <InitialMark
+              hasSelection={granted.has(authority.key)}
+              initials={initials}
+              watermarked={watermarked}
+            />
+            <Text style={styles.powerText}>{authority.text}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* If no specific authorities granted, render an unambiguous statement
+          so a counterparty doesn't wonder whether something was withheld
+          by accident. */}
+      {!anyGranted && (
         <View
           style={{
-            padding: 12,
+            padding: 10,
             borderLeftWidth: 2,
             borderLeftColor: "#666666",
-            marginTop: 4,
             marginBottom: SIZES.PARA_SPACING,
           }}
         >
-          <Text style={[styles.bodyTight, { fontFamily: "Times-Bold" }]}>
-            No specific authority under this section is granted.
-          </Text>
-          <Text style={[styles.bodyTight, styles.italic, { fontSize: 10, marginTop: 4 }]}>
-            The agent has not been granted authority to make gifts, create or
-            amend trusts, change rights of survivorship, change beneficiary
-            designations, or delegate authority granted under this power of
-            attorney.
+          <Text style={[styles.bodyTight, styles.italic, { fontSize: 10.5 }]}>
+            No specific authority under this section has been granted. The
+            agent does not have authority to create, amend, revoke, or
+            terminate an inter vivos trust; make a gift; create or change
+            rights of survivorship; create or change a beneficiary designation;
+            or authorize another person to exercise authority under this power
+            of attorney.
           </Text>
         </View>
       )}
@@ -101,26 +134,16 @@ export function HotPowers({ wizardState, watermarked = true }) {
   );
 }
 
-/**
- * Same InitialMark pattern as Powers.jsx — selected + watermarked shows
- * [SELECTED] placeholder; selected + final shows visible initials in
- * stylized italic; unselected shows blank box.
- */
 function InitialMark({ hasSelection, initials, watermarked }) {
   if (!hasSelection) {
     return <View style={styles.initialBox} />;
   }
-
   if (watermarked) {
     return (
       <View
         style={[
           styles.initialBox,
-          {
-            backgroundColor: "#E8E8E8",
-            alignItems: "center",
-            justifyContent: "center",
-          },
+          { backgroundColor: "#E8E8E8", alignItems: "center", justifyContent: "center" },
         ]}
       >
         <Text
@@ -136,17 +159,8 @@ function InitialMark({ hasSelection, initials, watermarked }) {
       </View>
     );
   }
-
   return (
-    <View
-      style={[
-        styles.initialBox,
-        {
-          alignItems: "center",
-          justifyContent: "center",
-        },
-      ]}
-    >
+    <View style={[styles.initialBox, { alignItems: "center", justifyContent: "center" }]}>
       <Text
         style={{
           fontFamily: "Times-Italic",
