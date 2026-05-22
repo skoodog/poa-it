@@ -11,16 +11,21 @@
  *   5. Effective date + durability declaration
  *   6. Signature + agent fiduciary notice + notary acknowledgment
  *
- * Receives the full wizard state and an optional `watermarked` flag. When
- * watermarked is true, the DRAFT overlay renders on every page.
+ * Every generated document carries POA-IT branding in both the header
+ * and footer:
+ *   - Header (top of every page): subtle logo + "poa-it" wordmark
+ *   - Footer (bottom of every page): logo + "Powered by POA-IT" attribution
+ *     + document metadata
  *
- * Every generated document carries POA-IT branding in the footer. This is
- * non-negotiable at the consumer + professional tiers — the only tier that
- * can suppress this branding is Enterprise, which is gated separately at
- * the API layer (not here in the template).
+ * This branding is non-negotiable at consumer + professional tiers. The
+ * Enterprise tier gate (when built) lives at the API layer, not here.
+ *
+ * Logo image: loaded from /public/poa-it-logo.png at render time. If the
+ * asset is absent, the components fall back to a PDF-primitive version
+ * (filled square with notch) so the document still renders cleanly.
  */
 
-import { Document, Page, Text, View } from "@react-pdf/renderer";
+import { Document, Page, Text, View, Image } from "@react-pdf/renderer";
 import { styles, FONTS, SIZES, COLORS } from "./styles";
 import { Header } from "./sections/Header";
 import { Designation } from "./sections/Designation";
@@ -30,6 +35,20 @@ import { EffectiveDate } from "./sections/EffectiveDate";
 import { Signature } from "./sections/Signature";
 import { Watermark } from "./sections/Watermark";
 
+// Logo asset path. In production, the file lives at /public/poa-it-logo.png
+// and is served from poa-it.com/poa-it-logo.png. At PDF-render time, react-pdf
+// fetches it via HTTP. The base URL comes from VERCEL_URL when deployed, or
+// falls back to localhost for local dev.
+function getLogoUrl() {
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}/poa-it-logo.png`;
+  }
+  if (process.env.NEXT_PUBLIC_SITE_URL) {
+    return `${process.env.NEXT_PUBLIC_SITE_URL}/poa-it-logo.png`;
+  }
+  return "https://poa-it.com/poa-it-logo.png";
+}
+
 export function TexasPoaDocument({ wizardState, watermarked = true }) {
   const now = new Date();
   const dateStr = now.toLocaleDateString("en-US", {
@@ -38,6 +57,7 @@ export function TexasPoaDocument({ wizardState, watermarked = true }) {
     day: "numeric",
   });
   const sessionId = wizardState.sessionId || "preview";
+  const logoUrl = getLogoUrl();
 
   return (
     <Document
@@ -49,6 +69,8 @@ export function TexasPoaDocument({ wizardState, watermarked = true }) {
       <Page size="LETTER" style={styles.page}>
         {watermarked && <Watermark />}
 
+        <BrandedHeader logoUrl={logoUrl} />
+
         <Header />
         <Designation wizardState={wizardState} />
         <Powers wizardState={wizardState} />
@@ -56,22 +78,73 @@ export function TexasPoaDocument({ wizardState, watermarked = true }) {
         <EffectiveDate wizardState={wizardState} />
         <Signature wizardState={wizardState} />
 
-        <BrandingFooter dateStr={dateStr} sessionId={sessionId} />
+        <BrandedFooter dateStr={dateStr} sessionId={sessionId} logoUrl={logoUrl} />
       </Page>
     </Document>
   );
 }
 
 /**
- * BrandingFooter
+ * BrandedHeader
+ *
+ * Subtle branded strip at the top of every page. Small logo mark + "poa-it"
+ * wordmark in the upper left. Single horizontal rule below to separate from
+ * document content.
+ *
+ * Sits in the page's top-margin reserved space (above the document body).
+ */
+function BrandedHeader({ logoUrl }) {
+  return (
+    <View
+      fixed
+      style={{
+        position: "absolute",
+        top: 18,
+        left: SIZES.PAGE_MARGIN,
+        right: SIZES.PAGE_MARGIN,
+      }}
+    >
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          marginBottom: 5,
+        }}
+      >
+        <Image
+          src={logoUrl}
+          style={{ width: 12, height: 12, marginRight: 5 }}
+        />
+        <Text
+          style={{
+            fontFamily: FONTS.SANS_BOLD,
+            fontSize: 9,
+            color: "#0A0A0A",
+            letterSpacing: 0.3,
+          }}
+        >
+          poa-it
+        </Text>
+      </View>
+
+      <View
+        style={{
+          borderTopWidth: 0.5,
+          borderTopColor: "#D4D4D8",
+        }}
+      />
+    </View>
+  );
+}
+
+/**
+ * BrandedFooter
  *
  * Two stacked rows at the bottom of every page:
- *   Row 1: page number (left) + document type + date (right)
- *   Row 2: POA-IT logo mark + "Powered by POA-IT - poa-it.com" + document ID
- *
- * Total footer height ~28pt. Sits within the page-margin reserved space.
+ *   Row 1: document type + date (left) + page number (right)
+ *   Row 2: POA-IT logo + "Powered by POA-IT" + URL (left) + document ID (right)
  */
-function BrandingFooter({ dateStr, sessionId }) {
+function BrandedFooter({ dateStr, sessionId, logoUrl }) {
   return (
     <View
       fixed
@@ -82,7 +155,7 @@ function BrandingFooter({ dateStr, sessionId }) {
         right: SIZES.PAGE_MARGIN,
       }}
     >
-      {/* Top divider line */}
+      {/* Divider line */}
       <View
         style={{
           borderTopWidth: 0.5,
@@ -91,7 +164,7 @@ function BrandingFooter({ dateStr, sessionId }) {
         }}
       />
 
-      {/* Row 1: meta info */}
+      {/* Row 1: meta */}
       <View
         style={{
           flexDirection: "row",
@@ -101,7 +174,7 @@ function BrandingFooter({ dateStr, sessionId }) {
         }}
       >
         <Text style={{ fontSize: SIZES.CAPTION, color: COLORS.GRAY }}>
-          Texas Statutory Durable POA · {dateStr}
+          Texas Statutory Durable POA \u00b7 {dateStr}
         </Text>
         <Text
           style={{ fontSize: SIZES.CAPTION, color: COLORS.GRAY }}
@@ -120,10 +193,13 @@ function BrandingFooter({ dateStr, sessionId }) {
         }}
       >
         <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <LogoBadge />
+          <Image
+            src={logoUrl}
+            style={{ width: 11, height: 11, marginRight: 5 }}
+          />
           <Text
             style={{
-              fontSize: 7.5,
+              fontSize: 8,
               fontFamily: FONTS.SANS_BOLD,
               color: "#3F3F46",
               letterSpacing: 0.5,
@@ -152,44 +228,6 @@ function BrandingFooter({ dateStr, sessionId }) {
           Document ID: {String(sessionId).slice(0, 8)}
         </Text>
       </View>
-    </View>
-  );
-}
-
-/**
- * LogoBadge
- *
- * A small typographic logo mark: a filled square with white "P" inside.
- * Sized to sit alongside 7.5pt text in the footer (~10pt box).
- *
- * Built from PDF primitives so we don't need to load an external image
- * during render. If we ever want a real raster/vector logo, we'd swap
- * this for an <Image src=... /> with the asset packaged into the bundle.
- */
-function LogoBadge() {
-  return (
-    <View
-      style={{
-        width: 10,
-        height: 10,
-        backgroundColor: "#0A0A0A",
-        borderRadius: 2,
-        marginRight: 5,
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      <Text
-        style={{
-          fontSize: 7,
-          fontFamily: FONTS.SANS_BOLD,
-          color: "#FFFFFF",
-          lineHeight: 1,
-          marginTop: 1,
-        }}
-      >
-        P
-      </Text>
     </View>
   );
 }
