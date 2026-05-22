@@ -32,6 +32,15 @@ export function Step8_Review({ state, setState, onBack, onContinue }) {
   const [generatingPreview, setGeneratingPreview] = useState(false);
   const [previewError, setPreviewError] = useState(null);
 
+  // ===== TEMP: download-for-attorney-review feature =====
+  // Sprint 4b note — REMOVE BEFORE PRODUCTION LAUNCH.
+  // This separate download button exists so the founder can email the
+  // generated PDF to counsel for legal review. The standard "Generate preview"
+  // path opens in a new tab; some browsers (Safari + certain PDF viewers)
+  // make download-from-viewer unreliable, which blocks the review workflow.
+  // Remove this state + handler + button when attorney review is complete.
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+
   async function handleGeneratePreview() {
     if (generatingPreview) return;
     setGeneratingPreview(true);
@@ -75,6 +84,69 @@ export function Step8_Review({ state, setState, onBack, onContinue }) {
       setPreviewError("network_error");
     } finally {
       setGeneratingPreview(false);
+    }
+  }
+
+  // ===== TEMP: download-for-attorney-review handler =====
+  // REMOVE BEFORE PRODUCTION LAUNCH (Sprint 4b cleanup).
+  // Same fetch path as handleGeneratePreview, but instead of opening in a
+  // new tab, programmatically triggers a download via an anchor tag click.
+  // This is the most reliable cross-browser way to force a save-to-disk.
+  async function handleDownloadPdf() {
+    if (downloadingPdf) return;
+    setDownloadingPdf(true);
+    setPreviewError(null);
+    try {
+      const syncResult = await syncToServer(state);
+      if (!syncResult.ok) {
+        setPreviewError("session_not_found");
+        setDownloadingPdf(false);
+        return;
+      }
+
+      const anonymousId = getOrCreateAnonymousId();
+      const res = await fetch("/api/wizard/generate-preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ anonymousId }),
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        setPreviewError(errJson.error || "preview_failed");
+        setDownloadingPdf(false);
+        return;
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+
+      // Build a meaningful filename from wizard state
+      const principalName = (state.principalFullLegalName || "Principal")
+        .trim()
+        .replace(/\s+/g, "-")
+        .replace(/[^a-zA-Z0-9-]/g, "");
+      const dateStr = new Date().toISOString().slice(0, 10);
+      const filename = `Texas-POA-${principalName}-${dateStr}-preview.pdf`;
+
+      // Programmatic anchor-click download — works in every browser
+      if (typeof window !== "undefined" && typeof document !== "undefined") {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        a.style.display = "none";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        // Revoke the URL after the download starts (5 seconds is plenty)
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+      }
+
+      audit.fieldChanged(state.sessionId, "preview_downloaded", true);
+    } catch (err) {
+      setPreviewError("network_error");
+    } finally {
+      setDownloadingPdf(false);
     }
   }
 
@@ -219,7 +291,7 @@ export function Step8_Review({ state, setState, onBack, onContinue }) {
             <button
               type="button"
               onClick={handleGeneratePreview}
-              disabled={generatingPreview}
+              disabled={generatingPreview || downloadingPdf}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -247,6 +319,44 @@ export function Step8_Review({ state, setState, onBack, onContinue }) {
                 </>
               )}
             </button>
+
+            {/* ===== TEMP: download-for-attorney-review button =====
+                REMOVE BEFORE PRODUCTION LAUNCH (Sprint 4b cleanup).
+                Lets the founder force-download the generated PDF to email
+                to counsel. Same generation path; different delivery. */}
+            <button
+              type="button"
+              onClick={handleDownloadPdf}
+              disabled={generatingPreview || downloadingPdf}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "9px 16px",
+                fontSize: 13,
+                fontWeight: 600,
+                background: TOKENS.PAPER,
+                color: downloadingPdf ? TOKENS.INK_40 : TOKENS.INK,
+                border: `1.5px solid ${TOKENS.LINE}`,
+                borderRadius: 7,
+                cursor: downloadingPdf ? "wait" : "pointer",
+                fontFamily: FONTS.SANS,
+              }}
+              title="Temporary — for attorney review only"
+            >
+              {downloadingPdf ? (
+                <>
+                  <Loader2 size={13} strokeWidth={2.2} className="spin-anim" />
+                  Preparing...
+                </>
+              ) : (
+                <>
+                  <Download size={13} strokeWidth={2.2} />
+                  Download to disk
+                </>
+              )}
+            </button>
+
             <span
               style={{
                 fontSize: 11.5,
@@ -257,7 +367,7 @@ export function Step8_Review({ state, setState, onBack, onContinue }) {
                 fontWeight: 600,
               }}
             >
-              Opens in new tab
+              Opens in new tab · Or download to share
             </span>
           </div>
 
