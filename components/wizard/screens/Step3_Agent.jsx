@@ -75,6 +75,9 @@ export function Step3_Agent({ state, setState, onBack, onContinue }) {
         updateState(state, {
           successorAgentFullLegalName: "",
           successorAgentAddress: "",
+          successorAgentCity: "",
+          successorAgentState: "TX",
+          successorAgentZip: "",
           successorAgentPhone: "",
           successorAgentEmail: "",
           alternateAgentSkipped: true,
@@ -109,6 +112,9 @@ export function Step3_Agent({ state, setState, onBack, onContinue }) {
   const successorRequired = showSuccessor
     ? state.successorAgentFullLegalName &&
       state.successorAgentAddress &&
+      state.successorAgentCity &&
+      state.successorAgentState &&
+      state.successorAgentZip &&
       state.successorAgentPhone &&
       state.successorAgentEmail
     : true;
@@ -341,13 +347,43 @@ export function Step3_Agent({ state, setState, onBack, onContinue }) {
                   error={touched.successorAgentFullLegalName ? errors.successorAgentFullLegalName : null}
                 />
                 <FormField
-                  label="Street address (city, state, ZIP)"
+                  label="Street address"
                   value={state.successorAgentAddress}
                   onChange={(v) => updateField("successorAgentAddress", v)}
-                  placeholder="789 Pine St, Dallas, TX 75201"
+                  placeholder="789 Pine St"
                   required
+                  autoComplete="street-address"
                   error={touched.successorAgentAddress ? errors.successorAgentAddress : null}
                 />
+
+                <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: 12 }}>
+                  <FormField
+                    label="City"
+                    value={state.successorAgentCity}
+                    onChange={(v) => updateField("successorAgentCity", v)}
+                    placeholder="Dallas"
+                    required
+                    error={touched.successorAgentCity ? errors.successorAgentCity : null}
+                  />
+                  <SelectField
+                    label="State"
+                    value={state.successorAgentState}
+                    onChange={(v) => updateField("successorAgentState", v)}
+                    options={US_STATES}
+                    placeholder="State"
+                    required
+                  />
+                  <FormField
+                    label="ZIP"
+                    value={state.successorAgentZip}
+                    onChange={(v) => updateField("successorAgentZip", v.replace(/\D/g, "").slice(0, 5))}
+                    placeholder="75201"
+                    required
+                    maxLength={5}
+                    autoComplete="postal-code"
+                    error={touched.successorAgentZip ? errors.successorAgentZip : null}
+                  />
+                </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                   <FormField
                     label="Phone"
@@ -459,6 +495,16 @@ function computeErrors(state, showSuccessor) {
         errors.successorAgentFullLegalName =
           "Your backup agent must be a different person than your primary agent.";
       }
+    }
+    // Sprint 4b.3: structured address validation, mirroring primary agent
+    if (state.successorAgentAddress && state.successorAgentAddress.trim().length < 5) {
+      errors.successorAgentAddress = "Please enter a full street address.";
+    }
+    if (state.successorAgentCity && state.successorAgentCity.trim().length < 2) {
+      errors.successorAgentCity = "Please enter a valid city.";
+    }
+    if (state.successorAgentZip && !/^\d{5}$/.test(state.successorAgentZip)) {
+      errors.successorAgentZip = "5-digit ZIP required.";
     }
     if (state.successorAgentPhone) {
       const digits = state.successorAgentPhone.replace(/\D/g, "");
