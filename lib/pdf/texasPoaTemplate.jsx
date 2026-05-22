@@ -56,8 +56,8 @@ export function TexasPoaDocument({ wizardState, watermarked = true }) {
         {/* Section order matches § 752.051 canonical structure */}
         <Header />
         <Designation wizardState={wizardState} />
-        <Powers wizardState={wizardState} />
-        <HotPowers wizardState={wizardState} />
+        <Powers wizardState={wizardState} watermarked={watermarked} />
+        <HotPowers wizardState={wizardState} watermarked={watermarked} />
         <EffectiveDate wizardState={wizardState} />
         <StatutoryProvisions wizardState={wizardState} />
         <Signature wizardState={wizardState} />

@@ -1,72 +1,112 @@
 /**
- * Powers section: the initial-each list of general powers under
- * Tex. Est. Code § 752.051.
+ * Powers section — Tex. Est. Code § 752.051 statutory authority grant.
  *
- * Sprint 4b changes (attorney review):
- *   - Replaced authority-selection instructions with statutory language
- *     ("To grant a power, you must initial the line in front of the power
- *     you are granting" — per current statutory form).
- *   - Updated (N) digital assets line to verbatim statutory wording.
- *   - Added co-agent disclosure language.
- *   - Added agent-compensation special instructions block.
- *   - Added co-agent coordination special instructions block.
- *   - Added gifts special-instructions block (statutory gift authority,
- *     separately initialed per § 751.031(b)(3)).
- *   - Special-instructions free-text block now shows clean numbered lines
- *     only when user provided content; otherwise just statutory framing.
+ * Sprint 4b.1 Round 1 — visible initials per attorney guidance:
+ *   "Render the principal's actual initials next to selected powers in
+ *    the final PDF (not blank lines). Require a final execution
+ *    acknowledgment that says the principal reviewed and approved all
+ *    selected grants of authority and associated initials."
  *
- * STATUTORY SOURCE
- *   Tex. Est. Code § 752.051 (current as of 2024 revision).
- *   Verified against: https://statutes.capitol.texas.gov/Docs/ES/htm/ES.752.htm
+ * Architecture:
+ *   1. Plain-English "Authority Summary" block (modern product clarity)
+ *   2. Formal statutory A–O grant table (institutional recognition)
+ *   3. Visible initials beside selected powers (legal operativity)
+ *   4. Execution acknowledgment text (affirmative-adoption requirement)
+ *
+ * Line (O) handling per statutory convention:
+ *   - If user granted all-powers: ONLY (O) is initialed. A–N stay blank.
+ *     This matches "If you initial line (O), you do not have to initial
+ *     the line in front of any other power."
+ *   - If user granted specific A–N powers: those lines initialed, (O) blank.
+ *
+ * Draft preview behavior:
+ *   - Where actual initials would appear in execution-ready PDF, draft shows
+ *     "[SELECTED]" placeholder text so reviewers understand the blanks are
+ *     a draft artifact, not a grant failure.
  */
 
 import { View, Text } from "@react-pdf/renderer";
-import { styles, SIZES } from "../styles";
+import { styles, SIZES, COLORS } from "../styles";
 
 const ALL_POWERS = [
-  { letter: "A", key: "real_property", text: "Real property transactions;" },
-  { letter: "B", key: "tangible_personal_property", text: "Tangible personal property transactions;" },
-  { letter: "C", key: "stocks_and_bonds", text: "Stock and bond transactions;" },
-  { letter: "D", key: "commodity_and_option", text: "Commodity and option transactions;" },
-  { letter: "E", key: "banking_and_financial", text: "Banking and other financial institution transactions;" },
-  { letter: "F", key: "business_operating", text: "Business operating transactions;" },
-  { letter: "G", key: "insurance_and_annuity", text: "Insurance and annuity transactions;" },
-  { letter: "H", key: "estate_trust_beneficiary", text: "Estate, trust, and other beneficiary transactions;" },
-  { letter: "I", key: "claims_and_litigation", text: "Claims and litigation;" },
-  { letter: "J", key: "personal_and_family_maintenance", text: "Personal and family maintenance;" },
-  { letter: "K", key: "government_benefits", text: "Benefits from social security, Medicare, Medicaid, or other governmental programs or civil or military service;" },
-  { letter: "L", key: "retirement_plan", text: "Retirement plan transactions;" },
-  { letter: "M", key: "tax_matters", text: "Tax matters;" },
-  // (N) is the line your attorney specifically flagged — verbatim statutory text now
-  { letter: "N", key: "digital_assets", text: "Digital assets and the content of an electronic communication;" },
-  { letter: "O", key: "all_powers", text: "ALL OF THE POWERS LISTED IN (A) THROUGH (N). YOU DO NOT HAVE TO INITIAL THE LINE IN FRONT OF ANY OTHER POWER IF YOU INITIAL LINE (O)." },
+  { letter: "A", key: "real_property", text: "Real property transactions;", summary: "Real property transactions" },
+  { letter: "B", key: "tangible_personal_property", text: "Tangible personal property transactions;", summary: "Tangible personal property transactions" },
+  { letter: "C", key: "stocks_and_bonds", text: "Stock and bond transactions;", summary: "Stock and bond transactions" },
+  { letter: "D", key: "commodity_and_option", text: "Commodity and option transactions;", summary: "Commodity and option transactions" },
+  { letter: "E", key: "banking_and_financial", text: "Banking and other financial institution transactions;", summary: "Banking and other financial institution transactions" },
+  { letter: "F", key: "business_operating", text: "Business operating transactions;", summary: "Business operating transactions" },
+  { letter: "G", key: "insurance_and_annuity", text: "Insurance and annuity transactions;", summary: "Insurance and annuity transactions" },
+  { letter: "H", key: "estate_trust_beneficiary", text: "Estate, trust, and other beneficiary transactions;", summary: "Estate, trust, and other beneficiary transactions" },
+  { letter: "I", key: "claims_and_litigation", text: "Claims and litigation;", summary: "Claims and litigation" },
+  { letter: "J", key: "personal_and_family_maintenance", text: "Personal and family maintenance;", summary: "Personal and family maintenance" },
+  { letter: "K", key: "government_benefits", text: "Benefits from social security, Medicare, Medicaid, or other governmental programs or civil or military service;", summary: "Benefits from social security, Medicare, Medicaid, or other governmental programs" },
+  { letter: "L", key: "retirement_plan", text: "Retirement plan transactions;", summary: "Retirement plan transactions" },
+  { letter: "M", key: "tax_matters", text: "Tax matters;", summary: "Tax matters" },
+  { letter: "N", key: "digital_assets", text: "Digital assets and the content of an electronic communication;", summary: "Digital assets and the content of an electronic communication" },
+  { letter: "O", key: "all_powers", text: "ALL OF THE POWERS LISTED IN (A) THROUGH (N). YOU DO NOT HAVE TO INITIAL THE LINE IN FRONT OF ANY OTHER POWER IF YOU INITIAL LINE (O).", summary: "All standard Texas financial powers" },
 ];
 
-export function Powers({ wizardState }) {
+const A_THROUGH_N = ALL_POWERS.filter((p) => p.letter !== "O");
+
+export function Powers({ wizardState, watermarked = true }) {
   const granted = new Set(wizardState.powersGranted || []);
   const initials = getInitials(wizardState.principalFullLegalName);
+  const grantedAll = granted.has("all_powers");
 
-  // Which powers get pre-filled initials in the PDF?
-  // - If (O) is granted: all of A-N AND (O) itself are marked
-  // - Otherwise: only the specifically granted powers are marked
-  const isGranted = (powerKey) => {
-    if (granted.has("all_powers")) return true;
+  // Statutory convention: line (O) is a control state, not just another power.
+  // If granted, ONLY (O) initials are rendered. A–N stay blank to match the
+  // statutory instruction "you do not need to initial any other line."
+  const renderInitialsFor = (powerKey) => {
+    if (grantedAll) {
+      return powerKey === "all_powers";
+    }
     return granted.has(powerKey);
   };
 
+  // Build the Authority Summary text — plain English of what was granted
+  const summaryText = buildAuthoritySummary(granted, grantedAll);
+
   return (
     <View>
-      {/* Co-agent disclosure — statutory parenthetical from § 752.051.
-          Appears immediately after the designation paragraph (which lives
-          in the Designation section) to match the canonical form layout. */}
+      {/* Co-agent disclosure — statutory parenthetical, appears right after
+          the designation paragraph (Designation section) per § 752.051 layout */}
       <Text style={[styles.body, { fontFamily: "Times-Bold" }]}>
         (YOU MAY APPOINT CO-AGENTS. UNLESS YOU PROVIDE OTHERWISE, CO-AGENTS MAY ACT INDEPENDENTLY.)
       </Text>
 
+      {/* AUTHORITY SUMMARY — plain-English block before the statutory table.
+          Per attorney guidance: "This is not a replacement for the statutory
+          section. It is a reader aid." */}
+      <View
+        style={{
+          padding: 12,
+          backgroundColor: "#F7F7F7",
+          borderLeftWidth: 2.5,
+          borderLeftColor: COLORS.INK,
+          marginTop: SIZES.PARA_SPACING,
+          marginBottom: SIZES.SECTION_SPACING,
+        }}
+      >
+        <Text
+          style={{
+            fontFamily: "Times-Bold",
+            fontSize: 10,
+            letterSpacing: 0.5,
+            textTransform: "uppercase",
+            color: COLORS.GRAY,
+            marginBottom: 4,
+          }}
+        >
+          Summary of Authority Granted
+        </Text>
+        <Text style={[styles.bodyTight, { fontSize: 10.5, marginBottom: 4 }]}>
+          {summaryText}
+        </Text>
+      </View>
+
       <Text style={styles.sectionHeading}>Grant of Authority</Text>
 
-      {/* Statutory grant instructions — replaces the prior incorrect "cross out
-          to withhold" instruction. This is the critical 4b-1 fix. */}
+      {/* Statutory grant instructions — verbatim § 752.051 */}
       <Text style={[styles.body, { fontFamily: "Times-Bold" }]}>
         TO GRANT ALL OF THE FOLLOWING POWERS, INITIAL THE LINE IN FRONT OF (O) AND IGNORE THE LINES IN FRONT OF THE OTHER POWERS LISTED IN (A) THROUGH (N).
       </Text>
@@ -79,178 +119,125 @@ export function Powers({ wizardState }) {
         TO WITHHOLD A POWER, DO NOT INITIAL THE LINE IN FRONT OF THE POWER. YOU MAY, BUT DO NOT NEED TO, CROSS OUT EACH POWER WITHHELD.
       </Text>
 
-      {/* The list of powers A-O with initialing boxes */}
+      {/* The A-O grant table */}
       <View style={{ marginBottom: SIZES.PARA_SPACING, marginTop: 4 }}>
         {ALL_POWERS.map((power) => (
           <View key={power.key} style={styles.powerRow} wrap={false}>
-            <View style={styles.initialBox}>
-              {isGranted(power.key) && (
-                <Text style={{ fontSize: 9, textAlign: "center" }}>{initials}</Text>
-              )}
-            </View>
+            <InitialMark
+              hasSelection={renderInitialsFor(power.key)}
+              initials={initials}
+              watermarked={watermarked}
+            />
             <Text style={styles.letterLabel}>({power.letter})</Text>
             <Text style={styles.powerText}>{power.text}</Text>
           </View>
         ))}
       </View>
 
-      {/* Agent compensation section — statutory addition (4b-4) */}
-      <CompensationSection wizardState={wizardState} initials={initials} />
+      {/* Execution acknowledgment — attorney-required affirmative adoption
+          language per: "Require a final execution acknowledgment that says
+          the principal reviewed and approved all selected grants of
+          authority and associated initials." */}
+      <View
+        style={{
+          padding: 10,
+          borderLeftWidth: 2,
+          borderLeftColor: "#999999",
+          marginTop: SIZES.PARA_SPACING,
+          marginBottom: SIZES.PARA_SPACING,
+        }}
+      >
+        <Text style={[styles.bodyTight, styles.italic, { fontSize: 10.5 }]}>
+          By signing this power of attorney, I, the Principal, confirm that I
+          have reviewed each power initialed above and that the initials
+          appearing beside each granted power were applied with my authorization
+          and represent my affirmative selection. I adopt these initials as my
+          own for purposes of this instrument.
+        </Text>
+      </View>
 
-      {/* Co-agent coordination section — statutory addition (4b-4) */}
-      <CoAgentSection wizardState={wizardState} initials={initials} />
-
-      {/* Gifts section — separate from hot-power initialing per statute */}
-      <GiftsSection wizardState={wizardState} initials={initials} />
-
-      {/* Special instructions free-text block */}
+      {/* Special instructions free-text block — renders only if user provided */}
       <SpecialInstructionsSection wizardState={wizardState} />
     </View>
   );
 }
 
 /**
- * Agent compensation — statutory § 752.051 section.
- * If the user didn't make a selection in the wizard, the form's default
- * applies ("each agent will be entitled to compensation that is reasonable
- * under the circumstances"). We still render the section so banks and
- * counterparties see the full statutory form.
- */
-function CompensationSection({ wizardState, initials }) {
-  const compChoice = wizardState.agentCompensation || ""; // "reasonable" | "no_compensation" | ""
-
-  return (
-    <View style={{ marginTop: SIZES.PARA_SPACING }} wrap={false}>
-      <Text style={[styles.body, styles.italic, { fontSize: 10.5 }]}>
-        Special instructions applicable to agent compensation (initial in front
-        of one of the following sentences to have it apply; if no selection is
-        made, each agent will be entitled to compensation that is reasonable
-        under the circumstances):
-      </Text>
-
-      <View style={styles.powerRow} wrap={false}>
-        <View style={styles.initialBox}>
-          {compChoice === "reasonable" && (
-            <Text style={{ fontSize: 9, textAlign: "center" }}>{initials}</Text>
-          )}
-        </View>
-        <Text style={styles.powerText}>
-          My agent is entitled to reimbursement of reasonable expenses incurred
-          on my behalf and to compensation that is reasonable under the circumstances.
-        </Text>
-      </View>
-
-      <View style={styles.powerRow} wrap={false}>
-        <View style={styles.initialBox}>
-          {compChoice === "no_compensation" && (
-            <Text style={{ fontSize: 9, textAlign: "center" }}>{initials}</Text>
-          )}
-        </View>
-        <Text style={styles.powerText}>
-          My agent is entitled to reimbursement of reasonable expenses incurred
-          on my behalf but shall receive no compensation for serving as my agent.
-        </Text>
-      </View>
-    </View>
-  );
-}
-
-/**
- * Co-agent coordination — statutory § 752.051 section.
- * Even when the user has only one agent (the typical case for our wizard),
- * this section is rendered so the document matches the statutory form
- * exactly. Default applies ("each agent will be entitled to act independently").
- */
-function CoAgentSection({ wizardState, initials }) {
-  const coAgentChoice = wizardState.coAgentCoordination || ""; // "independent" | "jointly" | "majority" | ""
-
-  return (
-    <View style={{ marginTop: SIZES.PARA_SPACING }} wrap={false}>
-      <Text style={[styles.body, styles.italic, { fontSize: 10.5 }]}>
-        Special instructions applicable to co-agents (if you have appointed
-        co-agents to act, initial in front of one of the following sentences
-        to have it apply; if no selection is made, each agent will be entitled
-        to act independently):
-      </Text>
-
-      <View style={styles.powerRow} wrap={false}>
-        <View style={styles.initialBox}>
-          {coAgentChoice === "independent" && (
-            <Text style={{ fontSize: 9, textAlign: "center" }}>{initials}</Text>
-          )}
-        </View>
-        <Text style={styles.powerText}>
-          Each of my co-agents may act independently for me.
-        </Text>
-      </View>
-
-      <View style={styles.powerRow} wrap={false}>
-        <View style={styles.initialBox}>
-          {coAgentChoice === "jointly" && (
-            <Text style={{ fontSize: 9, textAlign: "center" }}>{initials}</Text>
-          )}
-        </View>
-        <Text style={styles.powerText}>
-          My co-agents may act for me only if the co-agents act jointly.
-        </Text>
-      </View>
-
-      <View style={styles.powerRow} wrap={false}>
-        <View style={styles.initialBox}>
-          {coAgentChoice === "majority" && (
-            <Text style={{ fontSize: 9, textAlign: "center" }}>{initials}</Text>
-          )}
-        </View>
-        <Text style={styles.powerText}>
-          My co-agents may act for me only if a majority of the co-agents act jointly.
-        </Text>
-      </View>
-    </View>
-  );
-}
-
-/**
- * Gifts section — statutory § 752.051. This is the SEPARATE gift-power
- * initialing (different from the hot-powers gift authority in § 751.031).
- * The statutory framing places it within the general powers grant.
+ * InitialMark — renders the initials box for one power line.
  *
- * The wizard captures this preference at wizardState.giftAuthorityGranted
- * (true if user wants to enable annual-exclusion gifts; false otherwise).
+ * Three states:
+ *   1. Selected + execution-ready (not watermarked): stylized italic initials
+ *      e.g., "JMD" in Times-Italic
+ *   2. Selected + draft preview (watermarked): "[SELECTED]" placeholder
+ *      so reviewers know it's not a grant failure
+ *   3. Not selected: blank box (matches statutory layout)
  */
-function GiftsSection({ wizardState, initials }) {
-  const giftsGranted = !!wizardState.giftAuthorityGranted;
+function InitialMark({ hasSelection, initials, watermarked }) {
+  if (!hasSelection) {
+    // Empty box — matches the statutory form layout where unselected powers
+    // have a blank initial line
+    return <View style={styles.initialBox} />;
+  }
 
-  return (
-    <View style={{ marginTop: SIZES.PARA_SPACING }} wrap={false}>
-      <Text style={[styles.body, styles.italic, { fontSize: 10.5 }]}>
-        Special instructions applicable to gifts (initial in front of the
-        following sentence to have it apply):
-      </Text>
-
-      <View style={styles.powerRow} wrap={false}>
-        <View style={styles.initialBox}>
-          {giftsGranted && (
-            <Text style={{ fontSize: 9, textAlign: "center" }}>{initials}</Text>
-          )}
-        </View>
-        <Text style={styles.powerText}>
-          I grant my agent the power to apply my property to make gifts outright
-          to or for the benefit of a person, including by the exercise of a
-          presently exercisable general power of appointment held by me, except
-          that the amount of a gift to an individual may not exceed the amount
-          of annual exclusions allowed from the federal gift tax for the
-          calendar year of the gift.
+  if (watermarked) {
+    // Draft preview — explicit placeholder so reviewers know blanks are
+    // a draft artifact, not a defect. Per attorney: "[SELECTED] — initials
+    // pending execution."
+    return (
+      <View
+        style={[
+          styles.initialBox,
+          {
+            backgroundColor: "#E8E8E8",
+            alignItems: "center",
+            justifyContent: "center",
+          },
+        ]}
+      >
+        <Text
+          style={{
+            fontSize: 6.5,
+            fontFamily: "Helvetica-Bold",
+            color: "#555555",
+            letterSpacing: 0.3,
+          }}
+        >
+          SELECTED
         </Text>
       </View>
+    );
+  }
+
+  // Execution-ready PDF — render the actual initials
+  return (
+    <View
+      style={[
+        styles.initialBox,
+        {
+          alignItems: "center",
+          justifyContent: "center",
+        },
+      ]}
+    >
+      <Text
+        style={{
+          fontFamily: "Times-Italic",
+          fontSize: 10.5,
+          color: COLORS.INK,
+          letterSpacing: 0.5,
+        }}
+      >
+        {initials || "—"}
+      </Text>
     </View>
   );
 }
 
 /**
  * Special instructions free-text block. Renders only if the user provided
- * specific written instructions in the wizard. The statutory form provides
- * lines for hand-writing additional limits/extensions; in the digital path,
- * we render the typed content if any, or omit the section if none.
+ * specific written instructions. The general "Special Instructions" section
+ * required by the statute is handled elsewhere — this is for user-supplied
+ * additional content.
  */
 function SpecialInstructionsSection({ wizardState }) {
   const specialInstructions = (wizardState.specialInstructions || "").trim();
@@ -276,10 +263,78 @@ function SpecialInstructionsSection({ wizardState }) {
   );
 }
 
+/**
+ * Build the plain-English authority summary text.
+ *
+ * Three cases:
+ *   - All powers granted via (O): single sentence saying "all standard powers"
+ *   - Specific powers granted: list them with "Principal does not grant
+ *     authority over the unselected statutory subject matters" caveat
+ *   - No powers granted: warning text (this should not be reachable in
+ *     practice since the wizard blocks finalization, but defensive)
+ */
+function buildAuthoritySummary(granted, grantedAll) {
+  if (grantedAll) {
+    return (
+      "The Principal grants the Agent broad authority over ALL standard " +
+      "Texas statutory subject matters listed in (A) through (N) below. " +
+      "This includes real property, personal property, banking, business, " +
+      "insurance, estate matters, claims, family maintenance, government " +
+      "benefits, retirement plans, taxes, and digital assets."
+    );
+  }
+
+  const grantedPowers = A_THROUGH_N.filter((p) => granted.has(p.key));
+
+  if (grantedPowers.length === 0) {
+    return (
+      "No standard powers have been selected. The Agent will not have " +
+      "authority over any of the Texas statutory subject matters below. " +
+      "(This document will not be signing-ready until at least one power " +
+      "is granted.)"
+    );
+  }
+
+  const list = grantedPowers.map((p) => p.summary.toLowerCase());
+  let listText;
+  if (list.length === 1) {
+    listText = list[0];
+  } else if (list.length === 2) {
+    listText = `${list[0]} and ${list[1]}`;
+  } else {
+    listText = list.slice(0, -1).join("; ") + "; and " + list[list.length - 1];
+  }
+
+  return (
+    `The Principal grants the Agent authority over the following Texas ` +
+    `statutory subject matters: ${listText}. The Principal does not grant ` +
+    `authority over the unselected statutory subject matters except as ` +
+    `otherwise provided in this document.`
+  );
+}
+
+/**
+ * Generate principal's initials from full legal name.
+ * - "Jane Doe" → "JD"
+ * - "Jane M. Doe" → "JMD" (period stripped)
+ * - "Jane Marie Doe" → "JMD"
+ * - "Jane" → "J"
+ * - "" → ""
+ *
+ * For names with 4+ words, takes first + last only ("Mary Anne Smith Jones"
+ * → "MJ") to avoid initial strings longer than 3 letters.
+ */
 function getInitials(name) {
   if (!name) return "";
-  const parts = name.trim().split(/\s+/).filter(Boolean);
+  // Strip periods and split on whitespace
+  const cleaned = name.replace(/\./g, "").trim();
+  const parts = cleaned.split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "";
   if (parts.length === 1) return parts[0][0].toUpperCase();
+  if (parts.length === 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  if (parts.length === 3) {
+    return (parts[0][0] + parts[1][0] + parts[2][0]).toUpperCase();
+  }
+  // 4+ words: first + last only
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
