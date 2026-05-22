@@ -143,19 +143,24 @@ function InitialMark({ hasSelection, initials, watermarked }) {
     return <View style={styles.initialBox} />;
   }
 
-  // Sprint 4b.2: actual initials render in both states. Draft preview
-  // uses dimmed gray so unsigned state remains unmistakable while still
-  // showing precisely which authorities were selected.
-  const initialsColor = watermarked ? "#888888" : COLORS.INK;
+  // Sprint 4b.3 fix: dark gray for draft visibility against watermark;
+  // absolute-positioned text guarantees glyph lands inside the box.
+  const initialsColor = watermarked ? "#3F3F3F" : COLORS.INK;
 
   return (
-    <View style={[styles.initialBox, { alignItems: "center", justifyContent: "center" }]}>
+    <View style={[styles.initialBox, { position: "relative" }]}>
       <Text
         style={{
+          position: "absolute",
+          bottom: 0.5,
+          left: 0,
+          right: 0,
+          textAlign: "center",
           fontFamily: "Times-Italic",
-          fontSize: 10.5,
+          fontSize: 11,
           color: initialsColor,
           letterSpacing: 0.5,
+          lineHeight: 1,
         }}
       >
         {initials || "—"}

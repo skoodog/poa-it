@@ -169,8 +169,10 @@ function NotaryBlock({ wizardState }) {
             The electronic signature and seal of the online notary public are
             attached to and incorporated into this document by the online
             notarization platform pursuant to Tex. Gov't Code § 406.108 and
-            § 406.109, together with the certificate of completion required
-            under applicable Texas Secretary of State rules.
+            § 406.109, together with any electronic journal, audit record,
+            audio-video recording, identity-verification record, or platform
+            certificate maintained or generated as required or permitted by
+            applicable Texas law and platform procedures.
           </Text>
         </View>
       )}

@@ -26,7 +26,11 @@ const ROW_HEIGHT = 200;
 const ROW_OFFSET = 130;
 const TILE_FONT_SIZE = 28;
 const LOGO_SIZE = 22;
-const OPACITY = 0.16;
+// Sprint 4b.3: reduced from 0.16 to 0.10 so watermark identifies the
+// draft state without visually competing with content (initials boxes,
+// fine-print statutory text). DRAFT identity remains unmistakable;
+// content beneath stays legible.
+const OPACITY = 0.10;
 
 export function Watermark() {
   const tiles = [];

@@ -103,6 +103,10 @@ export function Powers({ wizardState, watermarked = true }) {
         <Text style={[styles.bodyTight, { fontSize: 10.5, marginBottom: 4 }]}>
           {summaryText}
         </Text>
+        {/* Hot-power summary sentence — Sprint 4b.3 per attorney's final pass.
+            Improves institutional readability by aligning the plain-English
+            summary, the operative § 752.052 text, and the certificate. */}
+        <HotPowerSummaryLine wizardState={wizardState} />
       </View>
 
       <Text style={styles.sectionHeading}>Grant of Authority</Text>
@@ -225,9 +229,11 @@ function HomeEquityProtection({ wizardState }) {
           Texas home-equity loan closing documents unless this instrument is
           executed at the location and in the manner required by applicable
           Texas home-equity law (Tex. Const. art. XVI § 50(a)(6)(N)). Because
-          this instrument is being executed by online notarization, the
-          agent's authority over real property excludes execution of
-          home-equity loan closing documents on behalf of the Principal.
+          this instrument is being executed through a general online
+          notarization workflow that does not verify execution at the
+          permanent physical office of a lender, attorney at law, or title
+          company, the agent's real-property authority excludes execution of
+          Texas home-equity loan closing documents on behalf of the Principal.
         </Text>
       </View>
     </View>
@@ -291,47 +297,45 @@ function CompensationSection({ wizardState, initials, watermarked }) {
 /**
  * InitialMark — renders the initials mark for one power line.
  *
- * Sprint 4b.2 fix: prior version showed an empty/illegible "[SELECTED]"
- * shaded box for draft previews, which left institutions confused about
- * what the box meant. Per attorney's third-round review: "Visible initials
- * beside selected general powers" required in all rendered output.
+ * Sprint 4b.3 bug fix: prior version rendered initials but they were
+ * invisible against the DRAFT watermark because:
+ *   1. The 14pt-tall box + 10.5pt italic + default lineHeight caused
+ *      the text glyph to render outside the visible box area, OR
+ *   2. The dimmed gray (#888888) draft color was too close to the
+ *      watermark gray (#8C8C8C @ 16% opacity), making initials disappear
+ *      visually even when present in the text layer.
  *
- * Behavior:
- *   - Selected + execution-ready (not watermarked): italic initials,
- *     full ink color. e.g., "JMD" in Times-Italic 10pt.
- *   - Selected + draft preview (watermarked): same italic initials but
- *     dimmed to ~50% gray, with a small "(preview)" caption below the
- *     box. Reviewers see exactly which powers are granted at-a-glance
- *     while remaining unmistakable that the document is not executed.
- *   - Not selected: blank box matching statutory form layout.
+ * Fix:
+ *   - Box gets position:relative; Text uses absolute positioning anchored
+ *     to bottom-center, guaranteeing the glyph lands inside the box.
+ *   - Draft color darkened to #3F3F3F — clearly visible against
+ *     watermark while still distinguishable from full-ink execution.
+ *   - Explicit lineHeight:1 prevents react-pdf's default line spacing
+ *     from pushing the glyph outside the box.
  */
 function InitialMark({ hasSelection, initials, watermarked }) {
   if (!hasSelection) {
     return <View style={styles.initialBox} />;
   }
 
-  // Both draft preview and execution-ready render the actual initials.
-  // The difference: draft uses a dimmed color so reviewers immediately
-  // perceive the document is unsigned. Both states clearly show which
-  // powers were selected.
-  const initialsColor = watermarked ? "#888888" : COLORS.INK;
+  // Draft preview uses dark gray for clear visibility against the
+  // DRAFT watermark. Execution-ready uses full ink black.
+  const initialsColor = watermarked ? "#3F3F3F" : COLORS.INK;
 
   return (
-    <View
-      style={[
-        styles.initialBox,
-        {
-          alignItems: "center",
-          justifyContent: "center",
-        },
-      ]}
-    >
+    <View style={[styles.initialBox, { position: "relative" }]}>
       <Text
         style={{
+          position: "absolute",
+          bottom: 0.5,
+          left: 0,
+          right: 0,
+          textAlign: "center",
           fontFamily: "Times-Italic",
-          fontSize: 10.5,
+          fontSize: 11,
           color: initialsColor,
           letterSpacing: 0.5,
+          lineHeight: 1,
         }}
       >
         {initials || "—"}
@@ -417,6 +421,55 @@ function buildAuthoritySummary(granted, grantedAll) {
     `statutory subject matters: ${listText}. The Principal does not grant ` +
     `authority over the unselected statutory subject matters except as ` +
     `otherwise provided in this document.`
+  );
+}
+
+/**
+ * HotPowerSummaryLine — appends a plain-English sentence to the Authority
+ * Summary block when any specific (hot) authorities have been granted.
+ *
+ * Per attorney's final-pass review: improves institutional readability by
+ * aligning summary → operative § 752.052 text → document certificate.
+ *
+ * Wizard hot-power keys: hot_power_trust, hot_power_gifts,
+ * hot_power_survivorship, hot_power_beneficiary, hot_power_delegate.
+ */
+function HotPowerSummaryLine({ wizardState }) {
+  const granted = Array.isArray(wizardState.hotPowersGranted)
+    ? wizardState.hotPowersGranted
+    : [];
+  if (granted.length === 0) return null;
+
+  const labels = {
+    hot_power_trust: "Create, amend, revoke, or terminate an inter vivos trust",
+    hot_power_gifts:
+      "Make a gift, subject to Section 751.032 limits and any special " +
+      "instructions in this power of attorney",
+    hot_power_survivorship: "Create or change rights of survivorship",
+    hot_power_beneficiary: "Create or change a beneficiary designation",
+    hot_power_delegate: "Authorize another person to exercise authority",
+  };
+
+  const grantedLabels = granted
+    .map((k) => labels[k])
+    .filter(Boolean);
+
+  if (grantedLabels.length === 0) return null;
+
+  const listText =
+    grantedLabels.length === 1
+      ? grantedLabels[0]
+      : grantedLabels.length === 2
+      ? `${grantedLabels[0]}; and ${grantedLabels[1]}`
+      : grantedLabels.slice(0, -1).join("; ") +
+        "; and " +
+        grantedLabels[grantedLabels.length - 1];
+
+  return (
+    <Text style={[styles.bodyTight, { fontSize: 10.5, marginTop: 6 }]}>
+      <Text style={{ fontFamily: "Times-Bold" }}>Specific authority granted: </Text>
+      {listText}.
+    </Text>
   );
 }
 

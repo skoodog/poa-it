@@ -35,8 +35,8 @@ const TAX_PROTECTIVE_LIMITATION =
   "power of appointment by my agent, or that would cause my agent's powers " +
   "to be considered a general power of appointment under federal tax law. " +
   "This limitation applies regardless of whether such authority would " +
-  "otherwise be granted by the powers listed above or by special instructions " +
-  "below.";
+  "otherwise be granted by the powers listed above or by any special " +
+  "instructions in this power of attorney.";
 
 export function SpecialInstructionsAndTaxLimitation({ wizardState }) {
   const specialInstructions = (wizardState.specialInstructions || "").trim();

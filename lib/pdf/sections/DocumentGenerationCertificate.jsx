@@ -93,6 +93,7 @@ export function DocumentGenerationCertificate({ wizardState, watermarked }) {
 
       <CertField label="Effective Date" value={effectiveDate} />
       <CertField label="Execution Method" value={executionMethod} />
+      <CertField label="Compensation Selection" value={formatCompensation(wizardState)} multiline />
       <CertSeparator />
 
       <CertField label="Authority Selection Method" value="POA-IT wizard" />
@@ -207,6 +208,29 @@ function formatPowersSelected(powersGranted) {
   return granted
     .map((k) => POWER_LABELS[k] || k)
     .join("\n");
+}
+
+/**
+ * Format the compensation selection for the certificate.
+ *
+ * Sprint 4b.3 — per attorney guidance: "the certificate should reconcile
+ * against actual user choice. Compensation selection: No option initialed;
+ * statutory default acknowledged by principal."
+ *
+ * Three states:
+ *   - User picked "reasonable" → "Reimbursement of expenses plus reasonable compensation"
+ *   - User picked "no_compensation" → "Reimbursement of expenses only; no compensation"
+ *   - User left blank → "No option initialed; statutory default acknowledged by principal"
+ */
+function formatCompensation(wizardState) {
+  const choice = wizardState.agentCompensation;
+  if (choice === "reasonable") {
+    return "Reimbursement of expenses plus reasonable compensation (initialed by principal)";
+  }
+  if (choice === "no_compensation") {
+    return "Reimbursement of expenses only; no compensation for serving (initialed by principal)";
+  }
+  return "No option initialed; statutory default acknowledged by principal";
 }
 
 // Sprint 4b.2 fix: labels keyed to wizard's actual keys. Prior version used
