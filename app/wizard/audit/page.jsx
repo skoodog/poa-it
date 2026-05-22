@@ -477,6 +477,7 @@ function EventRow({ event }) {
     tooltip_opened: TOKENS.INK_40,
     wizard_completed: TOKENS.LIVE_GREEN,
     validation_blocked: TOKENS.ERR_INK,
+    preview_generated: TOKENS.ACCENT,
   }[event.eventType] || TOKENS.INK_60;
 
   return (

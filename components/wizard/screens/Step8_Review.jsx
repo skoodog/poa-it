@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect } from "react";
-import { Edit3, CheckCircle2, Mail, FileText, Shield, AlertCircle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Edit3, CheckCircle2, Mail, FileText, Shield, AlertCircle, Download, Loader2 } from "lucide-react";
 import { TOKENS, FONTS } from "../shared/tokens";
 import { WizardShell } from "../WizardShell";
 import { StatutoryTooltip } from "../shared/StatutoryTooltip";
 import { Disclaimer } from "../shared/Disclaimer";
 import { AcknowledgmentCheckbox } from "../shared/AcknowledgmentCheckbox";
 import { getAllGeneralPowers, getAllHotPowers } from "../../../lib/clauseLibrary/engine";
-import { updateState, markStepComplete } from "../../../lib/wizard/state";
+import { updateState, markStepComplete, getOrCreateAnonymousId } from "../../../lib/wizard/state";
 import { audit } from "../../../lib/audit/logger";
 
 /**
@@ -27,6 +27,46 @@ export function Step8_Review({ state, setState, onBack, onContinue }) {
 
   const allPowers = getAllGeneralPowers();
   const hotPowers = getAllHotPowers();
+
+  // Preview-PDF generation state
+  const [generatingPreview, setGeneratingPreview] = useState(false);
+  const [previewError, setPreviewError] = useState(null);
+
+  async function handleGeneratePreview() {
+    if (generatingPreview) return;
+    setGeneratingPreview(true);
+    setPreviewError(null);
+    try {
+      const anonymousId = getOrCreateAnonymousId();
+      const res = await fetch("/api/wizard/generate-preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ anonymousId }),
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        setPreviewError(errJson.error || "preview_failed");
+        setGeneratingPreview(false);
+        return;
+      }
+
+      // Open the PDF in a new tab
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      if (typeof window !== "undefined") {
+        window.open(url, "_blank", "noopener,noreferrer");
+        // Release the blob URL after a delay (gives the new tab time to load)
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      }
+
+      audit.fieldChanged(state.sessionId, "preview_generated", true);
+    } catch (err) {
+      setPreviewError("network_error");
+    } finally {
+      setGeneratingPreview(false);
+    }
+  }
 
   function jumpToStep(stepId) {
     setState(updateState(state, { currentStep: stepId }));
@@ -116,6 +156,127 @@ export function Step8_Review({ state, setState, onBack, onContinue }) {
       continueLabel="Continue to waitlist"
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.SANS }}>
+        {/* PREVIEW PDF PANEL */}
+        <div
+          style={{
+            padding: "16px 18px",
+            background: TOKENS.PAPER_2,
+            border: `1px solid ${TOKENS.LINE}`,
+            borderRadius: 10,
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
+          }}
+        >
+          <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+            <div
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 8,
+                background: TOKENS.PAPER,
+                border: `1px solid ${TOKENS.LINE}`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: TOKENS.INK_60,
+                flexShrink: 0,
+              }}
+            >
+              <FileText size={17} strokeWidth={1.8} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div
+                style={{
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: TOKENS.INK,
+                  marginBottom: 4,
+                  letterSpacing: "-0.005em",
+                }}
+              >
+                See what your document will look like
+              </div>
+              <div style={{ fontSize: 13, color: TOKENS.INK_60, lineHeight: 1.5 }}>
+                Generate a draft preview of your Texas Statutory Durable POA. The
+                preview is watermarked and has no legal effect until purchased
+                and notarized.
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <button
+              type="button"
+              onClick={handleGeneratePreview}
+              disabled={generatingPreview}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "9px 16px",
+                fontSize: 13,
+                fontWeight: 600,
+                background: generatingPreview ? TOKENS.INK_20 : TOKENS.INK,
+                color: TOKENS.PAPER,
+                border: "none",
+                borderRadius: 7,
+                cursor: generatingPreview ? "wait" : "pointer",
+                fontFamily: FONTS.SANS,
+              }}
+            >
+              {generatingPreview ? (
+                <>
+                  <Loader2 size={13} strokeWidth={2.2} className="spin-anim" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Download size={13} strokeWidth={2.2} />
+                  Generate preview PDF
+                </>
+              )}
+            </button>
+            <span
+              style={{
+                fontSize: 11.5,
+                color: TOKENS.INK_40,
+                fontFamily: FONTS.MONO,
+                letterSpacing: "0.04em",
+                textTransform: "uppercase",
+                fontWeight: 600,
+              }}
+            >
+              Opens in new tab
+            </span>
+          </div>
+
+          {previewError && (
+            <div
+              style={{
+                padding: "10px 12px",
+                background: "#FEF2F2",
+                border: "1px solid #FCA5A5",
+                borderRadius: 7,
+                fontSize: 12.5,
+                color: "#991B1B",
+                lineHeight: 1.45,
+              }}
+            >
+              {previewError === "session_not_found"
+                ? "We couldn't find your wizard session on the server. Try refreshing this page and trying again."
+                : previewError === "network_error"
+                ? "Network error generating the preview. Check your connection and try again."
+                : "Something went wrong generating the preview. Please try again, or contact support if the problem persists."}
+            </div>
+          )}
+
+          <style suppressHydrationWarning>{`
+            .spin-anim { animation: spin 0.8s linear infinite; }
+            @keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+          `}</style>
+        </div>
+
         {/* PRINCIPAL */}
         <ReviewSection
           title="Principal (you)"
