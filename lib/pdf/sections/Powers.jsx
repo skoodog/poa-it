@@ -68,11 +68,12 @@ export function Powers({ wizardState, watermarked = true }) {
 
   return (
     <View>
-      {/* Co-agent disclosure — statutory parenthetical, appears right after
-          the designation paragraph (Designation section) per § 752.051 layout */}
-      <Text style={[styles.body, { fontFamily: "Times-Bold" }]}>
-        (YOU MAY APPOINT CO-AGENTS. UNLESS YOU PROVIDE OTHERWISE, CO-AGENTS MAY ACT INDEPENDENTLY.)
-      </Text>
+      {/* Co-agent disclosure removed in Sprint 4b.1 Round 3.
+          Per attorney guidance: rendering "(YOU MAY APPOINT CO-AGENTS...)"
+          is misleading when the product doesn't actually support multi-agent
+          designation in the wizard. When co-agent support is added in a
+          future sprint, the parenthetical will be restored along with
+          actual co-agent input fields. */}
 
       {/* AUTHORITY SUMMARY — plain-English block before the statutory table.
           Per attorney guidance: "This is not a replacement for the statutory
@@ -158,6 +159,59 @@ export function Powers({ wizardState, watermarked = true }) {
 
       {/* Special instructions free-text block — renders only if user provided */}
       <SpecialInstructionsSection wizardState={wizardState} />
+
+      {/* Agent compensation — Sprint 4b.1 Round 3 restored. The wizard now
+          captures this as an explicit choice (no silent default), so the
+          PDF renders the user's selection with visible initials. */}
+      <CompensationSection
+        wizardState={wizardState}
+        initials={getInitials(wizardState.principalFullLegalName)}
+        watermarked={watermarked}
+      />
+    </View>
+  );
+}
+
+/**
+ * Agent compensation section — statutory § 752.051 block.
+ * Now driven by wizardState.agentCompensation which the wizard captures
+ * as an explicit user choice in Step 4.
+ */
+function CompensationSection({ wizardState, initials, watermarked }) {
+  const compChoice = wizardState.agentCompensation || "";
+
+  return (
+    <View style={{ marginTop: SIZES.PARA_SPACING }} wrap={false}>
+      <Text style={[styles.body, styles.italic, { fontSize: 10.5 }]}>
+        Special instructions applicable to agent compensation (initial in front
+        of one of the following sentences to have it apply; if no selection is
+        made, each agent will be entitled to compensation that is reasonable
+        under the circumstances):
+      </Text>
+
+      <View style={styles.powerRow} wrap={false}>
+        <InitialMark
+          hasSelection={compChoice === "reasonable"}
+          initials={initials}
+          watermarked={watermarked}
+        />
+        <Text style={styles.powerText}>
+          My agent is entitled to reimbursement of reasonable expenses incurred
+          on my behalf and to compensation that is reasonable under the circumstances.
+        </Text>
+      </View>
+
+      <View style={styles.powerRow} wrap={false}>
+        <InitialMark
+          hasSelection={compChoice === "no_compensation"}
+          initials={initials}
+          watermarked={watermarked}
+        />
+        <Text style={styles.powerText}>
+          My agent is entitled to reimbursement of reasonable expenses incurred
+          on my behalf but shall receive no compensation for serving as my agent.
+        </Text>
+      </View>
     </View>
   );
 }

@@ -29,6 +29,7 @@ import { EffectiveDate } from "./sections/EffectiveDate";
 import { StatutoryProvisions } from "./sections/StatutoryProvisions";
 import { Signature } from "./sections/Signature";
 import { ImportantInformationForAgent } from "./sections/ImportantInformationForAgent";
+import { DocumentGenerationCertificate } from "./sections/DocumentGenerationCertificate";
 import { Watermark } from "./sections/Watermark";
 
 function getLogoUrl() {
@@ -65,6 +66,10 @@ export function TexasPoaDocument({ wizardState, watermarked = true }) {
         <StatutoryProvisions />
         <Signature wizardState={wizardState} />
         <ImportantInformationForAgent />
+        <DocumentGenerationCertificate
+          wizardState={wizardState}
+          watermarked={watermarked}
+        />
 
         <PoweredByMark logoUrl={logoUrl} />
         <PageNumber />
@@ -76,12 +81,10 @@ export function TexasPoaDocument({ wizardState, watermarked = true }) {
 /**
  * PoweredByMark
  *
- * Single tasteful "Powered by [logo]" mark in the lower-right corner of
- * every page. The logo sits to the right of the text. Small but legible.
- *
- * If the logo image fails to load (asset not yet deployed, network blip),
- * the Image element will render empty space — the text "Powered by" still
- * displays so the attribution survives.
+ * Single tasteful "Powered by POA-IT" mark in the lower-right corner of
+ * every page. The logo image renders alongside the explicit platform name
+ * text — so the attribution survives even if the image fails to load,
+ * and the wordmark is legible regardless of image rendering quality.
  */
 function PoweredByMark({ logoUrl }) {
   return (
@@ -93,7 +96,7 @@ function PoweredByMark({ logoUrl }) {
         right: SIZES.PAGE_MARGIN,
         flexDirection: "row",
         alignItems: "center",
-        gap: 6,
+        gap: 5,
       }}
     >
       <Text
@@ -108,8 +111,18 @@ function PoweredByMark({ logoUrl }) {
       </Text>
       <Image
         src={logoUrl}
-        style={{ width: 36, height: 12 }}
+        style={{ width: 12, height: 12 }}
       />
+      <Text
+        style={{
+          fontFamily: FONTS.SANS_BOLD,
+          fontSize: 8.5,
+          color: "#0A0A0A",
+          letterSpacing: 0.3,
+        }}
+      >
+        POA-IT
+      </Text>
     </View>
   );
 }
@@ -117,9 +130,10 @@ function PoweredByMark({ logoUrl }) {
 /**
  * PageNumber
  *
- * Tiny page-number indicator in the lower-LEFT corner, opposite the
- * branding mark. Provides context for multi-page documents without
- * cluttering the layout.
+ * Page-number indicator in the lower-LEFT corner, opposite the branding
+ * mark. Always visible on every page (single-page or multi-page) per
+ * attorney guidance — single-page docs still benefit from a visible
+ * "Page 1 of 1" so a reader knows nothing is missing.
  */
 function PageNumber() {
   return (
@@ -135,7 +149,7 @@ function PageNumber() {
         letterSpacing: 0.3,
       }}
       render={({ pageNumber, totalPages }) =>
-        totalPages > 1 ? `Page ${pageNumber} of ${totalPages}` : ""
+        `Page ${pageNumber} of ${totalPages}`
       }
     />
   );
