@@ -8,7 +8,7 @@ import { StatutoryTooltip } from "../shared/StatutoryTooltip";
 import { Disclaimer } from "../shared/Disclaimer";
 import { AcknowledgmentCheckbox } from "../shared/AcknowledgmentCheckbox";
 import { getAllGeneralPowers, getAllHotPowers } from "../../../lib/clauseLibrary/engine";
-import { updateState, markStepComplete, getOrCreateAnonymousId } from "../../../lib/wizard/state";
+import { updateState, markStepComplete, getOrCreateAnonymousId, syncToServer } from "../../../lib/wizard/state";
 import { audit } from "../../../lib/audit/logger";
 
 /**
@@ -37,6 +37,16 @@ export function Step8_Review({ state, setState, onBack, onContinue }) {
     setGeneratingPreview(true);
     setPreviewError(null);
     try {
+      // Force a sync to the server before generating the PDF — otherwise the
+      // server might not have the latest wizard state yet (the periodic sync
+      // is debounced 800ms after each state change).
+      const syncResult = await syncToServer(state);
+      if (!syncResult.ok) {
+        setPreviewError("session_not_found");
+        setGeneratingPreview(false);
+        return;
+      }
+
       const anonymousId = getOrCreateAnonymousId();
       const res = await fetch("/api/wizard/generate-preview", {
         method: "POST",

@@ -22,6 +22,7 @@ import {
   updateState,
   WIZARD_STEPS,
   getPreviousStep,
+  syncToServer,
 } from "../../lib/wizard/state";
 import { getAuditLog, clearAuditLog } from "../../lib/audit/logger";
 
@@ -57,6 +58,20 @@ export default function WizardPage() {
       if (params.get("debug") === "true") setShowDebug(true);
     }
   }, []);
+
+  // Sync state to server (debounced 800ms after the last change). This keeps
+  // the Postgres wizard_sessions row roughly current so server-side features
+  // (PDF generation, professional workspace claim, audit log persistence)
+  // have something to work with. Best-effort — failures are silent.
+  useEffect(() => {
+    if (!state) return;
+    const handle = setTimeout(() => {
+      syncToServer(state).catch(() => {
+        // Non-fatal — localStorage remains the authoritative copy
+      });
+    }, 800);
+    return () => clearTimeout(handle);
+  }, [state]);
 
   function handleStartOver() {
     if (typeof window !== "undefined") {
