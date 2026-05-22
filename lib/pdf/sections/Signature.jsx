@@ -46,11 +46,10 @@ export function Signature({ wizardState }) {
           </Text>
         </View>
 
-        {/* Date line — required by attorney; lockable at execution */}
-        <View>
-          <View style={[styles.sigLine, { width: 220 }]} />
-          <Text style={styles.sigLineLabel}>Date</Text>
-        </View>
+        {/* Sprint 4b.2 — removed redundant separate Date line. The
+            "Signed this _____ day of _____________, ________." phrase
+            above already captures execution date. Having both created
+            ambiguity per attorney's third-round review. */}
       </View>
 
       <NotaryBlock wizardState={wizardState} />

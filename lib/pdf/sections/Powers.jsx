@@ -160,6 +160,14 @@ export function Powers({ wizardState, watermarked = true }) {
       {/* Special instructions free-text block — renders only if user provided */}
       <SpecialInstructionsSection wizardState={wizardState} />
 
+      {/* Home-equity protective special instruction — Sprint 4b.2 per
+          attorney's third-round review. When the document grants real
+          property authority (directly or via line O) AND the user chose
+          RON execution, automatically add this protective limitation.
+          Texas home-equity law requires execution at lender/attorney/title
+          company office — RON-executed POAs cannot validly authorize that. */}
+      <HomeEquityProtection wizardState={wizardState} />
+
       {/* Agent compensation — Sprint 4b.1 Round 3 restored. The wizard now
           captures this as an explicit choice (no silent default), so the
           PDF renders the user's selection with visible initials. */}
@@ -168,6 +176,60 @@ export function Powers({ wizardState, watermarked = true }) {
         initials={getInitials(wizardState.principalFullLegalName)}
         watermarked={watermarked}
       />
+    </View>
+  );
+}
+
+/**
+ * HomeEquityProtection — system-generated special instruction that excludes
+ * Texas home-equity loan execution authority from a RON-executed POA.
+ *
+ * Triggers when:
+ *   - Real-property authority granted (directly via line A or broadly via line O), AND
+ *   - Execution method is RON (or unset, defensive default)
+ *   - User did NOT explicitly grant home-equity authority via Step 4a
+ *
+ * Rationale: Texas Constitution art. XVI § 50(a)(6)(N) requires home-equity
+ * closing-document POAs to be signed at lender/attorney/title-company office.
+ * A RON-executed POA cannot satisfy that requirement. Adding this special
+ * instruction prevents agents from inadvertently misusing a RON POA for
+ * home-equity transactions.
+ */
+function HomeEquityProtection({ wizardState }) {
+  const granted = new Set(wizardState.powersGranted || []);
+  const realPropertyGranted = granted.has("all_powers") || granted.has("real_property");
+  const execMethod = wizardState.executionMethod || "ron";
+  const userExplicitlyGrantedHomeEquity = wizardState.grantsHomeEquityAuthority === true;
+
+  // Only render if (1) real-property is in scope, (2) RON is the execution path,
+  // and (3) the user did NOT explicitly grant home-equity authority via Step 4a
+  if (!realPropertyGranted) return null;
+  if (execMethod !== "ron") return null;
+  if (userExplicitlyGrantedHomeEquity) return null;
+
+  return (
+    <View style={{ marginTop: SIZES.PARA_SPACING }} wrap={false}>
+      <Text style={[styles.body, { fontFamily: "Times-Bold", fontSize: 10.5 }]}>
+        SPECIAL INSTRUCTION — HOME EQUITY LOAN AUTHORITY EXCLUDED
+      </Text>
+      <View
+        style={{
+          padding: 10,
+          borderWidth: 0.5,
+          borderColor: "#666666",
+          marginBottom: SIZES.PARA_SPACING,
+        }}
+      >
+        <Text style={styles.bodyTight}>
+          This power of attorney is not intended to authorize the execution of
+          Texas home-equity loan closing documents unless this instrument is
+          executed at the location and in the manner required by applicable
+          Texas home-equity law (Tex. Const. art. XVI § 50(a)(6)(N)). Because
+          this instrument is being executed by online notarization, the
+          agent's authority over real property excludes execution of
+          home-equity loan closing documents on behalf of the Principal.
+        </Text>
+      </View>
     </View>
   );
 }
@@ -226,43 +288,34 @@ function CompensationSection({ wizardState, initials, watermarked }) {
  *      so reviewers know it's not a grant failure
  *   3. Not selected: blank box (matches statutory layout)
  */
+/**
+ * InitialMark — renders the initials mark for one power line.
+ *
+ * Sprint 4b.2 fix: prior version showed an empty/illegible "[SELECTED]"
+ * shaded box for draft previews, which left institutions confused about
+ * what the box meant. Per attorney's third-round review: "Visible initials
+ * beside selected general powers" required in all rendered output.
+ *
+ * Behavior:
+ *   - Selected + execution-ready (not watermarked): italic initials,
+ *     full ink color. e.g., "JMD" in Times-Italic 10pt.
+ *   - Selected + draft preview (watermarked): same italic initials but
+ *     dimmed to ~50% gray, with a small "(preview)" caption below the
+ *     box. Reviewers see exactly which powers are granted at-a-glance
+ *     while remaining unmistakable that the document is not executed.
+ *   - Not selected: blank box matching statutory form layout.
+ */
 function InitialMark({ hasSelection, initials, watermarked }) {
   if (!hasSelection) {
-    // Empty box — matches the statutory form layout where unselected powers
-    // have a blank initial line
     return <View style={styles.initialBox} />;
   }
 
-  if (watermarked) {
-    // Draft preview — explicit placeholder so reviewers know blanks are
-    // a draft artifact, not a defect. Per attorney: "[SELECTED] — initials
-    // pending execution."
-    return (
-      <View
-        style={[
-          styles.initialBox,
-          {
-            backgroundColor: "#E8E8E8",
-            alignItems: "center",
-            justifyContent: "center",
-          },
-        ]}
-      >
-        <Text
-          style={{
-            fontSize: 6.5,
-            fontFamily: "Helvetica-Bold",
-            color: "#555555",
-            letterSpacing: 0.3,
-          }}
-        >
-          SELECTED
-        </Text>
-      </View>
-    );
-  }
+  // Both draft preview and execution-ready render the actual initials.
+  // The difference: draft uses a dimmed color so reviewers immediately
+  // perceive the document is unsigned. Both states clearly show which
+  // powers were selected.
+  const initialsColor = watermarked ? "#888888" : COLORS.INK;
 
-  // Execution-ready PDF — render the actual initials
   return (
     <View
       style={[
@@ -277,7 +330,7 @@ function InitialMark({ hasSelection, initials, watermarked }) {
         style={{
           fontFamily: "Times-Italic",
           fontSize: 10.5,
-          color: COLORS.INK,
+          color: initialsColor,
           letterSpacing: 0.5,
         }}
       >

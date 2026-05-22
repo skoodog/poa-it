@@ -110,8 +110,30 @@ export function Step4_Powers({ state, setState, onBack, onContinue }) {
   const grantedCount = allPowersChecked ? 14 : individualPowers.filter(isPowerActive).length;
   const canContinue = scope !== null && grantedCount > 0;
 
+  // Sprint 4b.2: Soft prompt modal for compensation default per attorney's
+  // recommended UX. If user hasn't picked, show modal explaining the
+  // statutory default and require affirmative choice before continuing.
+  const [showCompensationModal, setShowCompensationModal] = useState(false);
+
   function handleContinue() {
     if (!canContinue) return;
+
+    // If compensation wasn't selected, surface the soft prompt modal.
+    // The actual step-completion happens via continueWithChoice() after
+    // the user picks a path in the modal.
+    if (!state.agentCompensation) {
+      audit.fieldChanged(state.sessionId, "compensation_modal_shown", true);
+      setShowCompensationModal(true);
+      return;
+    }
+
+    continueWithChoice("user_selected");
+  }
+
+  function continueWithChoice(compensationPath) {
+    // compensationPath is one of:
+    //   "user_selected" — user picked a compensation option in the form
+    //   "statutory_default" — user clicked through modal accepting default
     audit.stepCompleted(state.sessionId, "step4_powers", {
       scope,
       allPowersGranted: allPowersChecked,
@@ -119,13 +141,30 @@ export function Step4_Powers({ state, setState, onBack, onContinue }) {
         ? "all_via_line_O"
         : Array.from(grantedSet).filter((p) => p !== "all_powers"),
       grantedCount,
+      compensationPath,
+      compensationSelection: state.agentCompensation || "statutory_default_applied",
+      compensationModalAcknowledgedAt:
+        compensationPath === "statutory_default" ? new Date().toISOString() : null,
     });
     const next = markStepComplete(state, "step4_powers", getNextStep({ ...state, currentStep: "step4_powers" }));
     setState(next);
     onContinue();
   }
 
+  function acceptStatutoryDefault() {
+    audit.fieldChanged(state.sessionId, "compensation_modal_choice", "statutory_default");
+    setShowCompensationModal(false);
+    continueWithChoice("statutory_default");
+  }
+
+  function goBackAndChoose() {
+    audit.fieldChanged(state.sessionId, "compensation_modal_choice", "go_back_and_choose");
+    setShowCompensationModal(false);
+    // Scroll to compensation question — user is already on the step
+  }
+
   return (
+    <>
     <WizardShell
       stepId="step4_powers"
       stepNumber="Step 5 of 9 - Powers"
@@ -541,6 +580,143 @@ export function Step4_Powers({ state, setState, onBack, onContinue }) {
         </div>
       )}
     </WizardShell>
+
+    {/* COMPENSATION SOFT-PROMPT MODAL — Sprint 4b.2.
+        Per attorney's recommended UX: shown when user attempts to continue
+        without selecting a compensation option. Two-button affirmative
+        choice; audit trail captures modal-shown + user-choice + timestamp. */}
+    {showCompensationModal && (
+      <CompensationModal
+        onAcceptDefault={acceptStatutoryDefault}
+        onGoBack={goBackAndChoose}
+      />
+    )}
+    </>
+  );
+}
+
+/**
+ * CompensationModal — soft prompt asking the user to either explicitly choose
+ * an agent compensation option or affirmatively accept the statutory default.
+ *
+ * Designed per attorney's third-round review:
+ *   "The legal risk is not 'user failed to choose,' it is 'user failed to
+ *    understand there was a default.' Your current architecture can solve
+ *    that cleanly without forcing a selection."
+ */
+function CompensationModal({ onAcceptDefault, onGoBack }) {
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: "rgba(0, 0, 0, 0.55)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 16,
+        zIndex: 1000,
+        fontFamily: FONTS.SANS,
+      }}
+      onClick={(e) => {
+        // Don't dismiss on backdrop click — user must affirmatively choose
+        e.stopPropagation();
+      }}
+    >
+      <div
+        style={{
+          background: TOKENS.PAPER,
+          borderRadius: 14,
+          maxWidth: 520,
+          width: "100%",
+          padding: "28px 28px 24px",
+          boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          style={{
+            fontSize: 11,
+            fontFamily: FONTS.MONO,
+            color: TOKENS.INK_40,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            fontWeight: 600,
+            marginBottom: 10,
+          }}
+        >
+          Quick check
+        </div>
+        <div
+          style={{
+            fontSize: 19,
+            fontWeight: 600,
+            color: TOKENS.INK,
+            letterSpacing: "-0.01em",
+            marginBottom: 12,
+            lineHeight: 1.35,
+          }}
+        >
+          You haven't chosen a compensation option for your agent.
+        </div>
+        <div
+          style={{
+            fontSize: 14,
+            color: TOKENS.INK_60,
+            lineHeight: 1.55,
+            marginBottom: 22,
+          }}
+        >
+          Under this Texas power of attorney, if no compensation option is
+          chosen, the statutory default applies: your agent may be entitled to
+          reimbursement of reasonable expenses{" "}
+          <strong style={{ color: TOKENS.INK }}>
+            and compensation that is reasonable under the circumstances
+          </strong>
+          . Some principals prefer to limit the agent to expense reimbursement
+          only — especially when the agent is family.
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <button
+            type="button"
+            onClick={onGoBack}
+            style={{
+              padding: "12px 16px",
+              background: TOKENS.INK,
+              color: TOKENS.PAPER,
+              border: "none",
+              borderRadius: 8,
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: "pointer",
+              fontFamily: FONTS.SANS,
+            }}
+          >
+            Go back and choose
+          </button>
+          <button
+            type="button"
+            onClick={onAcceptDefault}
+            style={{
+              padding: "12px 16px",
+              background: TOKENS.PAPER,
+              color: TOKENS.INK,
+              border: `1.5px solid ${TOKENS.LINE}`,
+              borderRadius: 8,
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: "pointer",
+              fontFamily: FONTS.SANS,
+            }}
+          >
+            Continue with statutory default
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

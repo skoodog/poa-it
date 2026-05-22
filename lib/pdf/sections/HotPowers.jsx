@@ -27,29 +27,33 @@
 import { View, Text } from "@react-pdf/renderer";
 import { styles, SIZES, COLORS } from "../styles";
 
-// Statutory order per § 752.052. Wizard state keys for backward compat.
+// Sprint 4b.2 fix: keys now match the wizard's keys exactly. Prior version
+// used long-form keys (e.g., hot_power_create_amend_trust) that the wizard
+// never set, so granted hot powers never appeared initialed in the rendered
+// PDF. Wizard keys are: hot_power_trust, hot_power_gifts, hot_power_survivorship,
+// hot_power_beneficiary, hot_power_delegate.
 const SPECIFIC_AUTHORITIES = [
   {
-    key: "hot_power_create_amend_trust",
+    key: "hot_power_trust",
     text: "Create, amend, revoke, or terminate an inter vivos trust.",
   },
   {
-    key: "hot_power_gifts_default_limited",
+    key: "hot_power_gifts",
     text:
       "Make a gift, subject to the limitations of Section 751.032 of the " +
       "Durable Power of Attorney Act (Section 751.032, Estates Code) and any " +
       "special instructions in this power of attorney.",
   },
   {
-    key: "hot_power_rights_of_survivorship",
+    key: "hot_power_survivorship",
     text: "Create or change rights of survivorship.",
   },
   {
-    key: "hot_power_beneficiary_designations",
+    key: "hot_power_beneficiary",
     text: "Create or change a beneficiary designation.",
   },
   {
-    key: "hot_power_delegate_authority",
+    key: "hot_power_delegate",
     text: "Authorize another person to exercise the authority granted under this power of attorney.",
   },
 ];
@@ -138,34 +142,19 @@ function InitialMark({ hasSelection, initials, watermarked }) {
   if (!hasSelection) {
     return <View style={styles.initialBox} />;
   }
-  if (watermarked) {
-    return (
-      <View
-        style={[
-          styles.initialBox,
-          { backgroundColor: "#E8E8E8", alignItems: "center", justifyContent: "center" },
-        ]}
-      >
-        <Text
-          style={{
-            fontSize: 6.5,
-            fontFamily: "Helvetica-Bold",
-            color: "#555555",
-            letterSpacing: 0.3,
-          }}
-        >
-          SELECTED
-        </Text>
-      </View>
-    );
-  }
+
+  // Sprint 4b.2: actual initials render in both states. Draft preview
+  // uses dimmed gray so unsigned state remains unmistakable while still
+  // showing precisely which authorities were selected.
+  const initialsColor = watermarked ? "#888888" : COLORS.INK;
+
   return (
     <View style={[styles.initialBox, { alignItems: "center", justifyContent: "center" }]}>
       <Text
         style={{
           fontFamily: "Times-Italic",
           fontSize: 10.5,
-          color: COLORS.INK,
+          color: initialsColor,
           letterSpacing: 0.5,
         }}
       >

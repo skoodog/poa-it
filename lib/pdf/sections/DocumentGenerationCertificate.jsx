@@ -114,11 +114,9 @@ export function DocumentGenerationCertificate({ wizardState, watermarked }) {
         }}
       >
         <Text style={[styles.bodyTight, styles.italic, { fontSize: 9.5 }]}>
-          To verify this document's integrity, recompute the SHA-256 hash of
-          the PDF (with the hash field cleared) and compare it to the value
-          above. Any modification to the document — including changes to
-          this certificate — will produce a different hash. For questions
-          about verification, contact{" "}
+          Document integrity verification is handled by POA-IT. The final
+          executed document will include or be associated with a SHA-256 hash
+          generated after execution. For questions about verification, contact{" "}
           <Text style={{ fontFamily: FONTS.SANS_BOLD }}>support@poa-it.com</Text>.
         </Text>
       </View>
@@ -211,18 +209,34 @@ function formatPowersSelected(powersGranted) {
     .join("\n");
 }
 
+// Sprint 4b.2 fix: labels keyed to wizard's actual keys. Prior version used
+// long-form keys that never matched the wizard, exposing raw tokens like
+// "hot_power_gifts" in the rendered certificate.
 const HOT_POWER_LABELS = {
-  hot_power_create_amend_trust: "Create, amend, revoke, or terminate an inter vivos trust",
-  hot_power_gifts_default_limited: "Make a gift (subject to § 751.032 limits)",
-  hot_power_rights_of_survivorship: "Create or change rights of survivorship",
-  hot_power_beneficiary_designations: "Create or change a beneficiary designation",
-  hot_power_delegate_authority: "Authorize another person to exercise authority",
+  hot_power_trust: "Create, amend, revoke, or terminate an inter vivos trust",
+  hot_power_gifts: "Make a gift (subject to § 751.032 limits)",
+  hot_power_survivorship: "Create or change rights of survivorship",
+  hot_power_beneficiary: "Create or change a beneficiary designation",
+  hot_power_delegate: "Authorize another person to exercise authority",
 };
 
 function formatHotPowersSelected(hotPowersGranted) {
   const granted = Array.isArray(hotPowersGranted) ? hotPowersGranted : [];
   if (granted.length === 0) return "None";
   return granted
-    .map((k) => HOT_POWER_LABELS[k] || k)
+    .map((k) => HOT_POWER_LABELS[k] || humanize(k))
     .join("\n");
+}
+
+/**
+ * Defensive fallback: if a key slips through that isn't in HOT_POWER_LABELS,
+ * humanize it instead of rendering the raw token. e.g.,
+ *   "hot_power_some_new_thing" → "Some new thing"
+ * Prevents internal tokens from ever leaking to users.
+ */
+function humanize(key) {
+  return String(key)
+    .replace(/^hot_power_/, "")
+    .replace(/_/g, " ")
+    .replace(/^\w/, (c) => c.toUpperCase());
 }

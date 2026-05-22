@@ -145,17 +145,26 @@ function AgentFieldBlock({ name, address, phone, email, labelPrefix }) {
 }
 
 /**
- * Format an address from component fields. Hardened against state-duplication.
+ * Format an address from component fields. Sprint 4b.2 hardened version:
+ * checks every field (addr, city, zip) for embedded state references and
+ * drops the explicit state if found anywhere. Prevents outputs like
+ * "789 Pine St, Dallas, TX 75717, Texas".
+ *
+ * Matches: "Texas", "TX", "Tex.", "Tex" — case-insensitive, word-boundaried.
  */
 function formatAddress({ addr, city, state, zip }) {
   const parts = [];
   if (addr) parts.push(addr);
 
   if (city || state || zip) {
-    const stateInCity = city && state
-      ? new RegExp(`\\b(${escapeForRegex(state)}|TX|Tex\\.?)\\b`, "i").test(city)
+    // Look for state references in ANY input field, not just city
+    const statePattern = state
+      ? new RegExp(`\\b(${escapeForRegex(state)}|TX|Tex\\.?)\\b`, "i")
+      : null;
+    const stateAlreadyPresent = statePattern
+      ? [addr, city, zip].some((f) => f && statePattern.test(f))
       : false;
-    const effectiveState = stateInCity ? "" : state;
+    const effectiveState = stateAlreadyPresent ? "" : state;
 
     const cityState = [city, effectiveState].filter(Boolean).join(", ");
     const cityStateZip = [cityState, zip].filter(Boolean).join(" ");
