@@ -6,6 +6,7 @@ import {
   Stethoscope, Building2, Briefcase, Heart, ChevronRight,
   RefreshCw, Hospital, Landmark, HandCoins, Search, AlertCircle, Shield,
 } from "lucide-react";
+import { US_STATES, US_STATE_CODES } from "../lib/data/usStatePaths";
 
 /* ============================================
    PALETTE — modern minimalist, lawyer mindset
@@ -701,8 +702,9 @@ function Coverage({ idx, setIdx }) {
           <USMap states={STATES} activeIdx={idx} setIdx={setIdx} />
           <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginTop: 20 }}>
             <Legend swatch={INK} label="Live (Texas)" />
-            <Legend swatch={INK_40} label="Coming (Phase 2-3)" />
+            <Legend swatch="#A1A1AA" label="Coming (Phase 2-3)" />
             <Legend swatch={ACCENT} label="Hybrid (CA, until 2030)" />
+            <Legend swatch="#E4E4E7" label="Not yet on roadmap" />
           </div>
         </div>
 
@@ -763,43 +765,94 @@ function PhasePill({ n, l, active }) {
 }
 
 function USMap({ states, activeIdx, setIdx }) {
-  const positions = {
-    FL: { x: 540, y: 290, w: 90, h: 50 },
-    TX: { x: 250, y: 260, w: 100, h: 70 },
-    AZ: { x: 130, y: 200, w: 80, h: 70 },
-    NC: { x: 500, y: 200, w: 80, h: 50 },
-    CO: { x: 200, y: 150, w: 80, h: 50 },
-    VA: { x: 530, y: 150, w: 80, h: 50 },
-    CA: { x: 50, y: 130, w: 70, h: 130 },
+  // Build a lookup: state-code → status info from the STATES roadmap array
+  const stateMeta = {};
+  states.forEach((s, i) => {
+    stateMeta[s.code] = { ...s, idx: i };
+  });
+
+  // Color resolution per state. States in the roadmap (live/soon/hybrid) get
+  // tier-specific colors. All other 44 states get the neutral "not yet" color.
+  const colorFor = (code) => {
+    const meta = stateMeta[code];
+    if (!meta) return "#E4E4E7"; // Not in roadmap — pale gray
+    if (meta.status === "live") return INK;
+    if (meta.status === "hybrid") return ACCENT;
+    if (meta.status === "soon") return "#A1A1AA"; // Phase 2-3 medium gray
+    return "#E4E4E7";
   };
+
+  // Returns the human-readable status tier for hover tooltip
+  const tierLabelFor = (code) => {
+    const meta = stateMeta[code];
+    if (!meta) return "Not yet on roadmap";
+    if (meta.status === "live") return "Live now";
+    if (meta.status === "hybrid") return `Hybrid · ${meta.ron}`;
+    if (meta.status === "soon") return `Coming · Phase ${meta.phase}`;
+    return "Not yet on roadmap";
+  };
+
   return (
-    <div style={{ background: PAPER_2, border: `1px solid ${LINE}`, borderRadius: 12, padding: 24 }}>
-      <svg viewBox="0 0 700 380" style={{ width: "100%", height: "auto" }}>
-        <text x="350" y="36" textAnchor="middle" fontSize="11" fill={INK_40} fontFamily="Geist Mono, monospace" letterSpacing="0.18em">
-          POA-IT COVERAGE MAP
-        </text>
-        {states.map((s, i) => {
-          const p = positions[s.code];
-          if (!p) return null;
-          const isActive = i === activeIdx;
-          let fill = s.status === "live" ? INK : s.status === "hybrid" ? ACCENT : INK_40;
-          if (isActive) fill = LIVE_GREEN;
+    <div style={{ background: PAPER_2, border: `1px solid ${LINE}`, borderRadius: 12, padding: 24, position: "relative" }}>
+      <div style={{
+        fontSize: 11, fontFamily: "Geist Mono, monospace", letterSpacing: "0.18em",
+        textTransform: "uppercase", color: INK_40, fontWeight: 600,
+        textAlign: "center", marginBottom: 16,
+      }}>
+        POA-IT Coverage Map
+      </div>
+
+      <svg viewBox="0 0 850 520" style={{ width: "100%", height: "auto", display: "block" }}>
+        {US_STATE_CODES.map((code) => {
+          const state = US_STATES[code];
+          const fill = colorFor(code);
+          const meta = stateMeta[code];
+          const isInRoadmap = !!meta;
+          const isActive = meta && meta.idx === activeIdx;
+          const c = state.center;
+
           return (
-            <g key={s.code} style={{ cursor: "pointer" }} onClick={() => setIdx(i)}>
-              <rect x={p.x} y={p.y} width={p.w} height={p.h} fill={fill} rx="4"
-                stroke={isActive ? INK : "rgba(255,255,255,0.6)"} strokeWidth={isActive ? 3 : 1} />
-              <text x={p.x + p.w / 2} y={p.y + p.h / 2 + 5} textAnchor="middle"
-                fontSize="14" fontFamily="Geist Mono, monospace" fontWeight="600"
-                fill={PAPER} style={{ pointerEvents: "none" }}>
-                {s.code}
-              </text>
+            <g
+              key={code}
+              style={{ cursor: isInRoadmap ? "pointer" : "default" }}
+              onMouseEnter={() => isInRoadmap && setIdx(meta.idx)}
+              onClick={() => isInRoadmap && setIdx(meta.idx)}
+            >
+              <title>{`${state.name} — ${tierLabelFor(code)}`}</title>
+              <path
+                d={state.d}
+                fill={fill}
+                stroke={isActive ? LIVE_GREEN : PAPER}
+                strokeWidth={isActive ? 3 : 1}
+                style={{ transition: "all 0.15s ease" }}
+              />
+              {/* Label on roadmap states only — keeps the map clean */}
+              {isInRoadmap && (
+                <text
+                  x={c[0]}
+                  y={c[1] + 4}
+                  textAnchor="middle"
+                  fontSize="11"
+                  fontFamily="Geist Mono, monospace"
+                  fontWeight="700"
+                  fill={meta.status === "soon" ? "#FFFFFF" : PAPER}
+                  style={{ pointerEvents: "none", letterSpacing: "0.05em" }}
+                >
+                  {code}
+                </text>
+              )}
             </g>
           );
         })}
-        <text x="350" y="368" textAnchor="middle" fontSize="10" fill={INK_40} fontFamily="Geist Mono, monospace" letterSpacing="0.12em">
-          + 42 MORE STATES BY MONTH 36
-        </text>
       </svg>
+
+      <div style={{
+        fontSize: 10, fontFamily: "Geist Mono, monospace", letterSpacing: "0.12em",
+        textTransform: "uppercase", color: INK_40, fontWeight: 600,
+        textAlign: "center", marginTop: 12,
+      }}>
+        Hover any highlighted state for details
+      </div>
     </div>
   );
 }
