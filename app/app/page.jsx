@@ -1,8 +1,10 @@
-import { Users, FileText, Plus, ArrowRight, Sparkles } from "lucide-react";
+import { Users, FileText, Plus, ArrowRight, Sparkles, ChevronRight } from "lucide-react";
 import { eq, count } from "drizzle-orm";
 import { TopBar } from "../../components/workspace/TopBar";
+import { ClientStatusBadge } from "../../components/workspace/ClientStatusBadge";
 import { TOKENS, FONTS } from "../../components/wizard/shared/tokens";
 import { getCurrentUser } from "../../lib/server/auth";
+import { getRecentClientsForFirm } from "../../lib/server/clients";
 import { db } from "../../lib/db";
 import { clients, documents, wizardSessions } from "../../lib/db/schema";
 
@@ -26,7 +28,7 @@ export default async function AppOverviewPage() {
   // Auth check happens in the layout, but we read user here for content
 
   // Quick stats — these queries will run very fast on small datasets
-  const [clientCount, documentCount, activeSessionCount] = await Promise.all([
+  const [clientCount, documentCount, activeSessionCount, recentClients] = await Promise.all([
     user?.firmId
       ? db
           .select({ count: count() })
@@ -48,9 +50,13 @@ export default async function AppOverviewPage() {
           .where(eq(wizardSessions.firmId, user.firmId))
           .then((r) => r[0]?.count || 0)
       : Promise.resolve(0),
+    user?.firmId
+      ? getRecentClientsForFirm(5).catch(() => [])
+      : Promise.resolve([]),
   ]);
 
   const isFirstTime = clientCount === 0 && documentCount === 0;
+  const hasRecentClients = recentClients && recentClients.length > 0;
 
   return (
     <>
@@ -108,8 +114,6 @@ export default async function AppOverviewPage() {
             title="Add a client"
             description="Create a new client record to start their POA process."
             ctaLabel="Open clients"
-            disabled
-            disabledReason="Available in Sprint 3"
           />
           <ActionCard
             href="/wizard"
@@ -127,7 +131,116 @@ export default async function AppOverviewPage() {
           />
         </div>
 
-        {/* Roadmap card */}
+        {/* Recent clients widget */}
+        {hasRecentClients && (
+          <>
+            <SectionHeader title="Recent clients" />
+            <div
+              style={{
+                background: TOKENS.PAPER,
+                border: `1px solid ${TOKENS.LINE}`,
+                borderRadius: 10,
+                marginBottom: 28,
+                overflow: "hidden",
+                fontFamily: FONTS.SANS,
+              }}
+            >
+              {recentClients.map((client, i) => (
+                <a
+                  key={client.id}
+                  href={`/app/clients/${client.id}`}
+                  className="recent-client-row"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 14,
+                    padding: "14px 18px",
+                    borderTop: i === 0 ? "none" : `1px solid ${TOKENS.LINE}`,
+                    textDecoration: "none",
+                    color: "inherit",
+                    transition: "background 0.12s",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: "50%",
+                      background: TOKENS.PAPER_2,
+                      border: `1px solid ${TOKENS.LINE}`,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 11,
+                      fontWeight: 600,
+                      color: TOKENS.INK_60,
+                      flexShrink: 0,
+                      fontFamily: FONTS.MONO,
+                    }}
+                  >
+                    {getInitials(client.name)}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 600,
+                        color: TOKENS.INK,
+                        marginBottom: 1,
+                      }}
+                    >
+                      {client.name}
+                    </div>
+                    {client.email && (
+                      <div
+                        style={{
+                          fontSize: 12,
+                          color: TOKENS.INK_60,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {client.email}
+                      </div>
+                    )}
+                  </div>
+                  <ClientStatusBadge status={client.status} size="sm" />
+                  <ChevronRight
+                    size={14}
+                    strokeWidth={1.8}
+                    color={TOKENS.INK_40}
+                    style={{ flexShrink: 0 }}
+                  />
+                </a>
+              ))}
+              <a
+                href="/app/clients"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  padding: "10px 14px",
+                  background: TOKENS.PAPER_2,
+                  borderTop: `1px solid ${TOKENS.LINE}`,
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  color: TOKENS.INK_60,
+                  textDecoration: "none",
+                }}
+              >
+                View all clients
+                <ArrowRight size={12} strokeWidth={2.2} />
+              </a>
+            </div>
+            <style suppressHydrationWarning>{`
+              .recent-client-row:hover {
+                background: ${TOKENS.PAPER_2};
+              }
+            `}</style>
+          </>
+        )}
         <SectionHeader title="What's building" />
         <div
           style={{
@@ -150,12 +263,12 @@ export default async function AppOverviewPage() {
           >
             <RoadmapItem
               sprint="Sprint 3"
-              status="next"
+              status="done"
               item="Client management — create, search, profile pages"
             />
             <RoadmapItem
               sprint="Sprint 4"
-              status="planned"
+              status="next"
               item="PDF generation for the Texas POA"
             />
             <RoadmapItem
@@ -432,4 +545,12 @@ function RoadmapItem({ sprint, status, item }) {
       </span>
     </li>
   );
+}
+
+function getInitials(name) {
+  if (!name) return "?";
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0][0].toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
