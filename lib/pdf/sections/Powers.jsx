@@ -90,45 +90,43 @@ export function Powers({ wizardState }) {
         ))}
       </View>
 
-      <Text style={styles.body}>
-        SPECIAL INSTRUCTIONS APPLICABLE TO AGENT (OPTIONAL): You may give
-        special instructions on the following lines limiting or extending the
-        powers granted to your agent.
-      </Text>
-
-      <SpecialInstructionsLines wizardState={wizardState} />
+      {/* Special instructions: only render the section if the principal
+          actually provided instructions. No blank "fill-in" lines — that's
+          tacky for a legal document. If the principal wants to add
+          handwritten instructions before signing, they can use the margins
+          or attach a rider. */}
+      <SpecialInstructionsSection wizardState={wizardState} />
     </View>
   );
 }
 
-function SpecialInstructionsLines({ wizardState }) {
-  // If the user provided special instructions in the wizard, render them.
-  // Otherwise, render three blank lines for hand-writing.
-  const specialInstructions = wizardState.specialInstructions || "";
+function SpecialInstructionsSection({ wizardState }) {
+  const specialInstructions = (wizardState.specialInstructions || "").trim();
 
-  if (specialInstructions.trim()) {
-    return (
+  // Empty? Don't render anything — no header, no lines, no section.
+  if (!specialInstructions) return null;
+
+  return (
+    <View style={{ marginBottom: SIZES.PARA_SPACING }}>
+      <Text style={[styles.body, { fontFamily: "Times-Bold" }]}>
+        SPECIAL INSTRUCTIONS APPLICABLE TO AGENT:
+      </Text>
       <View
         style={{
-          padding: 8,
+          padding: 10,
           borderWidth: 0.5,
-          borderColor: "#999999",
+          borderColor: "#666666",
           marginBottom: SIZES.PARA_SPACING,
         }}
       >
         <Text style={styles.bodyTight}>{specialInstructions}</Text>
       </View>
-    );
-  }
-
-  return (
-    <View style={{ marginBottom: SIZES.PARA_SPACING }}>
-      <View style={{ borderBottomWidth: 0.5, borderBottomColor: "#000", height: 18, marginBottom: 6 }} />
-      <View style={{ borderBottomWidth: 0.5, borderBottomColor: "#000", height: 18, marginBottom: 6 }} />
-      <View style={{ borderBottomWidth: 0.5, borderBottomColor: "#000", height: 18, marginBottom: 6 }} />
     </View>
   );
 }
+
+// (Removed SpecialInstructionsLines — replaced by SpecialInstructionsSection
+// above, which renders nothing when empty rather than three blank lines.)
 
 function getInitials(name) {
   if (!name) return "";

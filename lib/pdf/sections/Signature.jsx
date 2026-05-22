@@ -64,6 +64,13 @@ function NotaryBlock({ wizardState }) {
   const principalName = wizardState.principalFullLegalName || "____________";
   const executionMethod = wizardState.executionMethod || "ron";
 
+  // Format county for display: wizard captures it as "TRAVIS" (uppercase) or
+  // "Travis" — normalize to Title Case + " COUNTY" suffix per Texas convention
+  const rawCounty = wizardState.principalCounty || "";
+  const formattedCounty = rawCounty
+    ? rawCounty.charAt(0).toUpperCase() + rawCounty.slice(1).toLowerCase()
+    : "";
+
   return (
     <View
       wrap={false}
@@ -78,7 +85,12 @@ function NotaryBlock({ wizardState }) {
 
       <Text style={styles.bodyTight}>STATE OF TEXAS</Text>
       <Text style={[styles.bodyTight, { marginBottom: SIZES.PARA_SPACING }]}>
-        COUNTY OF ___________________
+        COUNTY OF{" "}
+        {formattedCounty ? (
+          <Text style={styles.fieldValue}>{formattedCounty.toUpperCase()}</Text>
+        ) : (
+          <Text>___________________</Text>
+        )}
       </Text>
 
       {executionMethod === "ron" ? (

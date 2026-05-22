@@ -11,18 +11,11 @@
  *   5. Effective date + durability declaration
  *   6. Signature + agent fiduciary notice + notary acknowledgment
  *
- * Every generated document carries POA-IT branding in both the header
- * and footer:
- *   - Header (top of every page): subtle logo + "poa-it" wordmark
- *   - Footer (bottom of every page): logo + "Powered by POA-IT" attribution
- *     + document metadata
+ * Branding: a single small "Powered by [logo]" mark in the lower-right
+ * corner of every page. No header strip, no multi-line footer — keeps the
+ * document looking like a legal document, not a marketing piece.
  *
- * This branding is non-negotiable at consumer + professional tiers. The
- * Enterprise tier gate (when built) lives at the API layer, not here.
- *
- * Logo image: loaded from /public/poa-it-logo.png at render time. If the
- * asset is absent, the components fall back to a PDF-primitive version
- * (filled square with notch) so the document still renders cleanly.
+ * Logo image: loaded from /public/poa-it-logo.png at render time.
  */
 
 import { Document, Page, Text, View, Image } from "@react-pdf/renderer";
@@ -35,10 +28,6 @@ import { EffectiveDate } from "./sections/EffectiveDate";
 import { Signature } from "./sections/Signature";
 import { Watermark } from "./sections/Watermark";
 
-// Logo asset path. In production, the file lives at /public/poa-it-logo.png
-// and is served from poa-it.com/poa-it-logo.png. At PDF-render time, react-pdf
-// fetches it via HTTP. The base URL comes from VERCEL_URL when deployed, or
-// falls back to localhost for local dev.
 function getLogoUrl() {
   if (process.env.VERCEL_URL) {
     return `https://${process.env.VERCEL_URL}/poa-it-logo.png`;
@@ -50,12 +39,6 @@ function getLogoUrl() {
 }
 
 export function TexasPoaDocument({ wizardState, watermarked = true }) {
-  const now = new Date();
-  const dateStr = now.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
   const sessionId = wizardState.sessionId || "preview";
   const logoUrl = getLogoUrl();
 
@@ -69,8 +52,6 @@ export function TexasPoaDocument({ wizardState, watermarked = true }) {
       <Page size="LETTER" style={styles.page}>
         {watermarked && <Watermark />}
 
-        <BrandedHeader logoUrl={logoUrl} />
-
         <Header />
         <Designation wizardState={wizardState} />
         <Powers wizardState={wizardState} />
@@ -78,156 +59,77 @@ export function TexasPoaDocument({ wizardState, watermarked = true }) {
         <EffectiveDate wizardState={wizardState} />
         <Signature wizardState={wizardState} />
 
-        <BrandedFooter dateStr={dateStr} sessionId={sessionId} logoUrl={logoUrl} />
+        <PoweredByMark logoUrl={logoUrl} />
+        <PageNumber />
       </Page>
     </Document>
   );
 }
 
 /**
- * BrandedHeader
+ * PoweredByMark
  *
- * Subtle branded strip at the top of every page. Small logo mark + "poa-it"
- * wordmark in the upper left. Single horizontal rule below to separate from
- * document content.
+ * Single tasteful "Powered by [logo]" mark in the lower-right corner of
+ * every page. The logo sits to the right of the text. Small but legible.
  *
- * Sits in the page's top-margin reserved space (above the document body).
+ * If the logo image fails to load (asset not yet deployed, network blip),
+ * the Image element will render empty space — the text "Powered by" still
+ * displays so the attribution survives.
  */
-function BrandedHeader({ logoUrl }) {
+function PoweredByMark({ logoUrl }) {
   return (
     <View
       fixed
       style={{
         position: "absolute",
-        top: 18,
-        left: SIZES.PAGE_MARGIN,
+        bottom: 22,
         right: SIZES.PAGE_MARGIN,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
       }}
     >
-      <View
+      <Text
         style={{
-          flexDirection: "row",
-          alignItems: "center",
-          marginBottom: 5,
+          fontFamily: FONTS.SANS,
+          fontSize: 7.5,
+          color: COLORS.GRAY,
+          letterSpacing: 0.3,
         }}
       >
-        <Image
-          src={logoUrl}
-          style={{ width: 12, height: 12, marginRight: 5 }}
-        />
-        <Text
-          style={{
-            fontFamily: FONTS.SANS_BOLD,
-            fontSize: 9,
-            color: "#0A0A0A",
-            letterSpacing: 0.3,
-          }}
-        >
-          poa-it
-        </Text>
-      </View>
-
-      <View
-        style={{
-          borderTopWidth: 0.5,
-          borderTopColor: "#D4D4D8",
-        }}
+        Powered by
+      </Text>
+      <Image
+        src={logoUrl}
+        style={{ width: 36, height: 12 }}
       />
     </View>
   );
 }
 
 /**
- * BrandedFooter
+ * PageNumber
  *
- * Two stacked rows at the bottom of every page:
- *   Row 1: document type + date (left) + page number (right)
- *   Row 2: POA-IT logo + "Powered by POA-IT" + URL (left) + document ID (right)
+ * Tiny page-number indicator in the lower-LEFT corner, opposite the
+ * branding mark. Provides context for multi-page documents without
+ * cluttering the layout.
  */
-function BrandedFooter({ dateStr, sessionId, logoUrl }) {
+function PageNumber() {
   return (
-    <View
+    <Text
       fixed
       style={{
         position: "absolute",
-        bottom: 18,
+        bottom: 22,
         left: SIZES.PAGE_MARGIN,
-        right: SIZES.PAGE_MARGIN,
+        fontFamily: FONTS.SANS,
+        fontSize: 7.5,
+        color: COLORS.GRAY,
+        letterSpacing: 0.3,
       }}
-    >
-      {/* Divider line */}
-      <View
-        style={{
-          borderTopWidth: 0.5,
-          borderTopColor: "#D4D4D8",
-          marginBottom: 5,
-        }}
-      />
-
-      {/* Row 1: meta */}
-      <View
-        style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 3,
-        }}
-      >
-        <Text style={{ fontSize: SIZES.CAPTION, color: COLORS.GRAY }}>
-          Texas Statutory Durable POA \u00b7 {dateStr}
-        </Text>
-        <Text
-          style={{ fontSize: SIZES.CAPTION, color: COLORS.GRAY }}
-          render={({ pageNumber, totalPages }) =>
-            `Page ${pageNumber} of ${totalPages}`
-          }
-        />
-      </View>
-
-      {/* Row 2: branding */}
-      <View
-        style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <Image
-            src={logoUrl}
-            style={{ width: 11, height: 11, marginRight: 5 }}
-          />
-          <Text
-            style={{
-              fontSize: 8,
-              fontFamily: FONTS.SANS_BOLD,
-              color: "#3F3F46",
-              letterSpacing: 0.5,
-            }}
-          >
-            Powered by POA-IT
-          </Text>
-          <Text
-            style={{
-              fontSize: 7,
-              color: COLORS.GRAY,
-              marginLeft: 6,
-              letterSpacing: 0.3,
-            }}
-          >
-            poa-it.com
-          </Text>
-        </View>
-        <Text
-          style={{
-            fontSize: 7,
-            color: COLORS.GRAY,
-            letterSpacing: 0.3,
-          }}
-        >
-          Document ID: {String(sessionId).slice(0, 8)}
-        </Text>
-      </View>
-    </View>
+      render={({ pageNumber, totalPages }) =>
+        totalPages > 1 ? `Page ${pageNumber} of ${totalPages}` : ""
+      }
+    />
   );
 }
