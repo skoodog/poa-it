@@ -258,7 +258,7 @@
       "category": "general_powers",
       "letter": "N",
       "plain_english_name": "Digital assets and electronic communications",
-      "plain_english_examples": "Access your email, manage cloud accounts, handle cryptocurrency, close down social media. Added by Texas in 2017.",
+      "plain_english_examples": "This may allow access to emails, cloud accounts, photos, files, cryptocurrency accounts, social media, and other digital assets depending on each provider's rules and applicable law. Access to the CONTENT of electronic communications (e.g., reading the body of emails) is treated as a separate, more sensitive category under Texas's digital-assets statute.",
       "required": false,
       "trigger": "user_initialed('digital_assets') OR user_initialed('all_powers')",
       "language": "(N)  Digital assets and the content of an electronic communication;"
@@ -273,7 +273,7 @@
       "plain_english_examples": "The most common choice — grants every power above without having to check each one individually.",
       "required": false,
       "trigger": "user_initialed('all_powers')",
-      "language": "(O)  ALL OF THE POWERS LISTED ABOVE.\n\nYOU NEED NOT INITIAL ANY OTHER LINES IF YOU INITIAL LINE (O)."
+      "language": "(O)  ALL OF THE POWERS LISTED IN (A) THROUGH (N). YOU DO NOT HAVE TO INITIAL THE LINE IN FRONT OF ANY OTHER POWER IF YOU INITIAL LINE (O)."
     },
     {
       "clause_id": "hot_power_gifts_default_limited",

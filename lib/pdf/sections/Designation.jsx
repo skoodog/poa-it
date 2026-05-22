@@ -1,18 +1,23 @@
 /**
- * Designation section: identifies the principal (the person granting power),
- * the agent (the person receiving power), and any successor agents.
+ * Designation section: principal + agent identification.
  *
- * Statutory structure from § 752.051 — the form opens with:
- *   "I, ____ (insert your name and address), appoint ____ (insert the name
- *    and address of the person appointed) as my agent to act for me..."
+ * Sprint 4b changes:
+ *   - Successor agent moved to StatutoryProvisions component
+ *     (rendered later in the document with statutory wording from § 752.051).
+ *   - formatAddress hardened against state-duplication bug (item 4b-10).
  *
- * Followed by optional successor agent section. We always include successor
- * agent block — if the wizard didn't capture one, we leave the lines blank
- * so the principal can hand-fill if they want to add one before signing.
+ * Per § 752.051 the principal-and-agent designation appears as a single
+ * paragraph: "I, [name + address], appoint [name + address] as my agent
+ * to act for me in any lawful way with respect to all of the following
+ * powers that I have initialed below."
+ *
+ * We expand this slightly to display the agent's contact info (phone)
+ * because real-world institutional acceptance typically wants the
+ * agent's phone for verification.
  */
 
 import { View, Text } from "@react-pdf/renderer";
-import { styles, COLORS, SIZES } from "../styles";
+import { styles, SIZES } from "../styles";
 
 export function Designation({ wizardState }) {
   const principalName = wizardState.principalFullLegalName || "____________";
@@ -32,18 +37,6 @@ export function Designation({ wizardState }) {
   });
   const agentPhone = wizardState.agentPhone || "____________";
 
-  const hasSuccessor = !!wizardState.successorAgentFullLegalName;
-  const successorName = wizardState.successorAgentFullLegalName || "";
-  const successorAddress = hasSuccessor
-    ? formatAddress({
-        addr: wizardState.successorAgentAddress,
-        city: wizardState.successorAgentCity,
-        state: wizardState.successorAgentState || "Texas",
-        zip: wizardState.successorAgentZip,
-      })
-    : "";
-  const successorPhone = wizardState.successorAgentPhone || "";
-
   return (
     <View>
       <Text style={styles.sectionHeading}>Designation of Agent</Text>
@@ -51,11 +44,10 @@ export function Designation({ wizardState }) {
       <Text style={styles.body}>
         I,{" "}
         <Text style={styles.fieldValue}>{principalName}</Text>
-        {", residing at "}
+        , residing at{" "}
         <Text style={styles.fieldValue}>{principalAddress}</Text>
-        {", appoint the following person as my agent to act for me in any "}
-        lawful way with respect to all of the following powers that I have
-        initialed below.
+        , appoint the following person as my agent to act for me in any lawful
+        way with respect to all of the powers that I have initialed below.
       </Text>
 
       <View style={{ marginLeft: 24, marginBottom: SIZES.PARA_SPACING }}>
@@ -72,53 +64,36 @@ export function Designation({ wizardState }) {
           <Text style={styles.fieldValue}>{agentPhone}</Text>
         </Text>
       </View>
-
-      <Text style={styles.sectionHeading}>
-        Designation of Successor Agent (Optional)
-      </Text>
-
-      <Text style={styles.body}>
-        If my agent is unable or unwilling to act for me, I name the following
-        person as my successor agent:
-      </Text>
-
-      <View style={{ marginLeft: 24, marginBottom: SIZES.PARA_SPACING }}>
-        <Text style={styles.bodyTight}>
-          <Text style={styles.bold}>Name of Successor Agent: </Text>
-          {hasSuccessor ? (
-            <Text style={styles.fieldValue}>{successorName}</Text>
-          ) : (
-            <Text style={styles.blankField}>____________</Text>
-          )}
-        </Text>
-        <Text style={styles.bodyTight}>
-          <Text style={styles.bold}>Successor Agent's Address: </Text>
-          {hasSuccessor ? (
-            <Text style={styles.fieldValue}>{successorAddress}</Text>
-          ) : (
-            <Text style={styles.blankField}>____________</Text>
-          )}
-        </Text>
-        <Text style={styles.bodyTight}>
-          <Text style={styles.bold}>Successor Agent's Telephone Number: </Text>
-          {hasSuccessor ? (
-            <Text style={styles.fieldValue}>{successorPhone}</Text>
-          ) : (
-            <Text style={styles.blankField}>____________</Text>
-          )}
-        </Text>
-      </View>
     </View>
   );
 }
 
+/**
+ * Format an address from component fields into a single display string.
+ *
+ * Sprint 4b — item 4b-10: hardened against state-duplication bug.
+ * If a user accidentally typed the state into the city field
+ * ("Houston, TX") or address field, our explicit `state: "Texas"`
+ * append would double the state. Now we detect and skip duplicates.
+ */
 function formatAddress({ addr, city, state, zip }) {
   const parts = [];
   if (addr) parts.push(addr);
+
   if (city || state || zip) {
-    const cityState = [city, state].filter(Boolean).join(", ");
+    const stateInCity = city && state
+      ? new RegExp(`\\b(${escapeForRegex(state)}|TX|Tex\\.?)\\b`, "i").test(city)
+      : false;
+    const effectiveState = stateInCity ? "" : state;
+
+    const cityState = [city, effectiveState].filter(Boolean).join(", ");
     const cityStateZip = [cityState, zip].filter(Boolean).join(" ");
     if (cityStateZip) parts.push(cityStateZip);
   }
+
   return parts.join(", ") || "____________";
+}
+
+function escapeForRegex(s) {
+  return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

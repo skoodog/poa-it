@@ -236,6 +236,28 @@ export function Step4_Powers({ state, setState, onBack, onContinue }) {
         </WarningBanner>
       )}
 
+      {/* Real-property recording warning — Sprint 4b item 4b-11.
+          Appears when real-property authority is granted. The full
+          recording-tracker workflow is Sprint 7.6; this is the consumer
+          heads-up. */}
+      {canContinue && (allPowersChecked || grantedSet.has("real_property")) && (
+        <div style={{ marginTop: 20 }}>
+          <WarningBanner
+            severity="info"
+            title="Real-property recording requirement"
+            citation="Tex. Est. Code § 751.151"
+          >
+            Because you're granting authority over real property, this power of
+            attorney may need to be recorded in the county clerk's office where
+            the property is located if used for a recorded real-estate
+            transaction (such as a deed, deed of trust, release, or other
+            recordable instrument). The recording must occur within{" "}
+            <strong>30 days</strong> of the instrument it relates to. We'll
+            include this in your post-signing checklist.
+          </WarningBanner>
+        </div>
+      )}
+
       {canContinue && (
         <div
           style={{

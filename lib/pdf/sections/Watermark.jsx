@@ -103,7 +103,7 @@ export function Watermark() {
           textTransform: "uppercase",
         }}
       >
-        Preview only \u00b7 This document has no legal effect until purchased and notarized
+        Preview copy only — unsigned / not notarized — not for use
       </Text>
     </>
   );

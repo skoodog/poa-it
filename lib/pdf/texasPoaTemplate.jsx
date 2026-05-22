@@ -25,6 +25,7 @@ import { Designation } from "./sections/Designation";
 import { Powers } from "./sections/Powers";
 import { HotPowers } from "./sections/HotPowers";
 import { EffectiveDate } from "./sections/EffectiveDate";
+import { StatutoryProvisions } from "./sections/StatutoryProvisions";
 import { Signature } from "./sections/Signature";
 import { Watermark } from "./sections/Watermark";
 
@@ -52,11 +53,13 @@ export function TexasPoaDocument({ wizardState, watermarked = true }) {
       <Page size="LETTER" style={styles.page}>
         {watermarked && <Watermark />}
 
+        {/* Section order matches § 752.051 canonical structure */}
         <Header />
         <Designation wizardState={wizardState} />
         <Powers wizardState={wizardState} />
         <HotPowers wizardState={wizardState} />
         <EffectiveDate wizardState={wizardState} />
+        <StatutoryProvisions wizardState={wizardState} />
         <Signature wizardState={wizardState} />
 
         <PoweredByMark logoUrl={logoUrl} />

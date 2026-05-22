@@ -1,18 +1,20 @@
 /**
- * Hot Powers section: powers that require SEPARATE initialing because they
- * carry heightened risk to the principal's estate. Under § 751.031(b), these
- * powers are NOT included in a general grant — they must be specifically
- * granted with separate, conscious affirmation.
+ * Hot Powers section — separate authorities requiring conscious affirmation
+ * under Tex. Est. Code § 751.031(b).
  *
- * The five hot powers:
- *   1. Make gifts (subject to per-donee annual exclusion unless expanded)
+ * Sprint 4b changes:
+ *   - Dynamic rendering: if no hot powers granted, shows clean
+ *     "No specific authority under this section is granted." statement.
+ *     If some granted, shows only granted ones with pre-filled initials.
+ *   - Removed the static "(None of the above hot powers were initialed
+ *     during preparation)" note that became false after manual signing.
+ *
+ * The five hot powers per § 751.031(b):
+ *   1. Make a gift (per § 751.032 limitations)
  *   2. Create, amend, revoke, or terminate an inter vivos trust
  *   3. Create or change rights of survivorship
  *   4. Create or change a beneficiary designation
  *   5. Delegate authority granted under the power of attorney
- *
- * Each hot power has its own initialing line. If the principal didn't grant
- * a particular hot power, the line is left blank.
  */
 
 import { View, Text } from "@react-pdf/renderer";
@@ -41,7 +43,7 @@ const HOT_POWERS = [
   },
   {
     key: "hot_power_delegate_authority",
-    label: "Authorize another person to exercise the authority granted under this power of attorney",
+    label: "Delegate authority granted under this power of attorney",
     text: "Authorize another person to exercise the authority granted under this power of attorney.",
   },
 ];
@@ -49,43 +51,58 @@ const HOT_POWERS = [
 export function HotPowers({ wizardState }) {
   const granted = new Set(wizardState.hotPowersGranted || []);
   const initials = getInitials(wizardState.principalFullLegalName);
-  const anyGranted = HOT_POWERS.some((p) => granted.has(p.key));
+  const grantedPowers = HOT_POWERS.filter((p) => granted.has(p.key));
+  const anyGranted = grantedPowers.length > 0;
 
   return (
     <View>
-      <Text style={styles.sectionHeading}>Grant of Specific Authority (Optional)</Text>
+      <Text style={styles.sectionHeading}>Grant of Specific Authority</Text>
+
+      <Text style={[styles.body, { fontFamily: "Times-Bold" }]}>
+        FAILURE TO INITIAL ANY LINE BELOW MEANS YOUR AGENT WILL NOT HAVE THE
+        AUTHORITY DESCRIBED IN THAT LINE.
+      </Text>
 
       <Text style={styles.body}>
         My agent MAY NOT do any of the following acts for me UNLESS I have
         INITIALED the specific authority listed below:
       </Text>
 
-      <View style={{ marginBottom: SIZES.PARA_SPACING }}>
-        {HOT_POWERS.map((power, idx) => (
-          <View key={power.key} style={styles.powerRow} wrap={false}>
-            <View style={styles.initialBox}>
-              {granted.has(power.key) && (
+      {anyGranted ? (
+        // Render only the granted hot powers
+        <View style={{ marginBottom: SIZES.PARA_SPACING }}>
+          {grantedPowers.map((power, idx) => (
+            <View key={power.key} style={styles.powerRow} wrap={false}>
+              <View style={styles.initialBox}>
                 <Text style={{ fontSize: 9, textAlign: "center" }}>{initials}</Text>
-              )}
+              </View>
+              <Text style={styles.letterLabel}>({idx + 1})</Text>
+              <Text style={styles.powerText}>{power.text}</Text>
             </View>
-            <Text style={styles.letterLabel}>({idx + 1})</Text>
-            <Text style={styles.powerText}>{power.text}</Text>
-          </View>
-        ))}
-      </View>
-
-      {!anyGranted && (
-        <Text style={[styles.body, styles.italic, { fontSize: 10 }]}>
-          (None of the above hot powers were initialed during preparation. The
-          agent will not have authority for any of these acts unless the
-          principal initials one or more above prior to signing.)
-        </Text>
+          ))}
+        </View>
+      ) : (
+        // No hot powers granted — clean definitive statement (4b-5)
+        <View
+          style={{
+            padding: 12,
+            borderLeftWidth: 2,
+            borderLeftColor: "#666666",
+            marginTop: 4,
+            marginBottom: SIZES.PARA_SPACING,
+          }}
+        >
+          <Text style={[styles.bodyTight, { fontFamily: "Times-Bold" }]}>
+            No specific authority under this section is granted.
+          </Text>
+          <Text style={[styles.bodyTight, styles.italic, { fontSize: 10, marginTop: 4 }]}>
+            The agent has not been granted authority to make gifts, create or
+            amend trusts, change rights of survivorship, change beneficiary
+            designations, or delegate authority granted under this power of
+            attorney.
+          </Text>
+        </View>
       )}
-
-      <Text style={styles.body}>
-        FAILURE TO INITIAL ANY LINE ABOVE MEANS YOUR AGENT WILL NOT HAVE THE
-        AUTHORITY DESCRIBED IN THAT LINE.
-      </Text>
     </View>
   );
 }
