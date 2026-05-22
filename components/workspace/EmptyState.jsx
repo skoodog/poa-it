@@ -1,22 +1,18 @@
-"use client";
-
 import { TOKENS, FONTS } from "../wizard/shared/tokens";
 
 /**
  * EmptyState
  *
- * Used by all five workspace sections (Clients, Documents, Audit, Settings,
- * Billing) when there's no data to show OR when the feature is still being
- * built. The empty-state pattern is more honest than fake placeholder data —
- * users immediately understand "this section exists but I haven't done anything
- * here yet" or "this is coming soon."
+ * Server-renderable empty-state for workspace sections. Receives icon as a
+ * component reference — must be a server component (no "use client") so the
+ * function reference doesn't cross the client boundary.
  *
  * Props:
- *   icon         — lucide icon component to display (e.g., <Users />)
- *   title        — primary message ("No clients yet" or "Coming in Sprint 3")
+ *   icon         — lucide icon component to display
+ *   title        — primary message
  *   description  — secondary explanation
- *   action       — optional action element (button/link to do something)
- *   roadmap      — optional array of upcoming features for this section
+ *   action       — optional action element (JSX, serializes fine)
+ *   roadmap      — optional array of upcoming features
  */
 export function EmptyState({ icon: Icon, title, description, action, roadmap }) {
   return (
