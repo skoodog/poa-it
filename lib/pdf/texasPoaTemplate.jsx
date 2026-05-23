@@ -71,6 +71,14 @@ export function TexasPoaDocument({ wizardState, watermarked = true }) {
           watermarked={watermarked}
         />
 
+        {/* End-of-document marker — Sprint 4b.4. Signals to the reader
+            that there is no further substantive content. If any trailing
+            blank page appears after this marker due to react-pdf's
+            pagination of fixed/absolute elements, the reader already
+            knows from this marker that any blank space is intentional. */}
+        <EndOfDocumentMarker />
+
+        {/* Fixed footer elements appear on every page */}
         <PoweredByMark logoUrl={logoUrl} />
         <PageNumber />
       </Page>
@@ -152,5 +160,58 @@ function PageNumber() {
         `Page ${pageNumber} of ${totalPages}`
       }
     />
+  );
+}
+
+/**
+ * EndOfDocumentMarker
+ *
+ * Renders a visible "— End of Document —" mark as the last flow element
+ * in the document, immediately after the Document Generation Certificate.
+ * Signals to the reader that no further substantive content follows.
+ *
+ * Sprint 4b.4 — defensive solution for the trailing-blank-page issue the
+ * attorney flagged. Rather than chase the exact cause through react-pdf's
+ * pagination internals (which may produce a blank trailing page when
+ * fixed/absolute elements interact with `break={true}` flow content), we
+ * tell the reader explicitly that any blank page following this marker
+ * is intentional. Pre-empts the ambiguity that prompted the attorney's
+ * "remove blank page 9 before launch" recommendation.
+ */
+function EndOfDocumentMarker() {
+  return (
+    <View
+      style={{
+        marginTop: SIZES.SECTION_SPACING * 1.5,
+        paddingTop: 12,
+        borderTopWidth: 0.5,
+        borderTopColor: "#D4D4D8",
+        alignItems: "center",
+      }}
+      wrap={false}
+    >
+      <Text
+        style={{
+          fontFamily: FONTS.SANS,
+          fontSize: 9,
+          color: COLORS.GRAY,
+          letterSpacing: 1.5,
+          textTransform: "uppercase",
+        }}
+      >
+        — End of Document —
+      </Text>
+      <Text
+        style={{
+          fontFamily: FONTS.SANS,
+          fontSize: 8,
+          color: COLORS.GRAY,
+          marginTop: 4,
+          fontStyle: "italic",
+        }}
+      >
+        Any blank page appearing after this marker is intentionally left blank.
+      </Text>
+    </View>
   );
 }
