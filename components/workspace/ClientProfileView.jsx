@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { TopBar } from "./TopBar";
 import { ClientStatusBadge } from "./ClientStatusBadge";
+import { DocumentStatusBadge } from "./DocumentStatusBadge";
 import { ActivityTimeline } from "./ActivityTimeline";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { TOKENS, FONTS } from "../wizard/shared/tokens";
@@ -636,27 +637,38 @@ function Field({ label, required, optional, input, helpText }) {
 }
 
 function DocumentRow({ doc }) {
+  const isTerminalState = doc.status === "revoked" || doc.status === "superseded";
+
   return (
     <div
       style={{
         padding: "12px 14px",
-        background: TOKENS.PAPER_2,
+        background: isTerminalState ? "#FAFAFA" : TOKENS.PAPER_2,
         border: `1px solid ${TOKENS.LINE}`,
         borderRadius: 7,
         display: "flex",
         alignItems: "center",
         gap: 12,
+        opacity: isTerminalState ? 0.78 : 1,
       }}
     >
       <FileText size={14} strokeWidth={1.8} color={TOKENS.INK_60} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 500, color: TOKENS.INK }}>
+        <div
+          style={{
+            fontSize: 13,
+            fontWeight: 500,
+            color: TOKENS.INK,
+            textDecoration: isTerminalState ? "line-through" : "none",
+          }}
+        >
           {doc.documentType?.replace(/_/g, " ") || "Document"}
         </div>
-        <div style={{ fontSize: 11, color: TOKENS.INK_60, fontFamily: FONTS.MONO }}>
-          {doc.status}
+        <div style={{ fontSize: 11, color: TOKENS.INK_60, fontFamily: FONTS.MONO, marginTop: 2 }}>
+          {doc.createdAt ? new Date(doc.createdAt).toLocaleDateString() : ""}
         </div>
       </div>
+      <DocumentStatusBadge status={doc.status} />
     </div>
   );
 }
