@@ -6,6 +6,8 @@ import {
   Stethoscope, Building2, Briefcase, Heart, ChevronRight,
   RefreshCw, Hospital, Landmark, HandCoins, Search, AlertCircle, Shield,
 } from "lucide-react";
+import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
+import Link from "next/link";
 import { US_STATES, US_STATE_CODES } from "../lib/data/usStatePaths";
 
 /* ============================================
@@ -166,7 +168,42 @@ function Nav({ onStart }) {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-          <span style={{ fontSize: 14, color: INK_60 }}>Sign in</span>
+          <SignedOut>
+            <Link
+              href="/sign-in"
+              style={{
+                fontSize: 14,
+                color: INK_60,
+                textDecoration: "none",
+                fontWeight: 450,
+              }}
+              className="underline-link"
+            >
+              Sign in
+            </Link>
+          </SignedOut>
+          <SignedIn>
+            <Link
+              href="/app/clients"
+              style={{
+                fontSize: 14,
+                color: INK_60,
+                textDecoration: "none",
+                fontWeight: 450,
+              }}
+              className="underline-link"
+            >
+              Workspace
+            </Link>
+            <UserButton
+              afterSignOutUrl="/"
+              appearance={{
+                elements: {
+                  avatarBox: { width: 32, height: 32 },
+                },
+              }}
+            />
+          </SignedIn>
           <button onClick={onStart} style={{
             fontSize: 14, fontWeight: 500, padding: "8px 16px",
             background: INK, color: PAPER, borderRadius: 6,
