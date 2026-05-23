@@ -375,7 +375,7 @@ export function ClientProfileView({ client, auditEvents, documents, wizardSessio
           {documents && documents.length > 0 ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {documents.map((doc) => (
-                <DocumentRow key={doc.id} doc={doc} />
+                <DocumentRow key={doc.id} doc={doc} clientId={client.id} />
               ))}
             </div>
           ) : (
@@ -636,8 +636,13 @@ function Field({ label, required, optional, input, helpText }) {
   );
 }
 
-function DocumentRow({ doc }) {
+function DocumentRow({ doc, clientId }) {
   const isTerminalState = doc.status === "revoked" || doc.status === "superseded";
+  const isRevokable =
+    doc.status === "generated" ||
+    doc.status === "signed" ||
+    doc.status === "notarized" ||
+    doc.status === "delivered";
 
   return (
     <div
@@ -669,6 +674,27 @@ function DocumentRow({ doc }) {
         </div>
       </div>
       <DocumentStatusBadge status={doc.status} />
+      {isRevokable && clientId && (
+        <a
+          href={`/app/clients/${clientId}/revoke?documentId=${doc.id}`}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            padding: "6px 10px",
+            background: TOKENS.PAPER,
+            color: "#991B1B",
+            border: "1px solid #FECACA",
+            borderRadius: 6,
+            fontSize: 11.5,
+            fontWeight: 600,
+            textDecoration: "none",
+            whiteSpace: "nowrap",
+          }}
+        >
+          Revoke
+        </a>
+      )}
     </div>
   );
 }
