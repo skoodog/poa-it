@@ -28,9 +28,14 @@ const isProtectedRoute = createRouteMatcher([
   "/api/protected(.*)",
 ]);
 
-export default clerkMiddleware((auth, req) => {
+// Sprint 4c hotfix: Clerk transitioned `auth` from a sync object to an async
+// function in a recent minor release. The previous `auth.protect()` syntax
+// works on the old API; the current API requires `await auth.protect()`
+// inside an async handler. This change makes the middleware compatible with
+// both API shapes.
+export default clerkMiddleware(async (auth, req) => {
   if (isProtectedRoute(req)) {
-    auth.protect();
+    await auth.protect();
   }
 });
 
