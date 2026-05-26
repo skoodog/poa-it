@@ -28,14 +28,15 @@ const isProtectedRoute = createRouteMatcher([
   "/api/protected(.*)",
 ]);
 
-// Sprint 4c hotfix: Clerk transitioned `auth` from a sync object to an async
-// function in a recent minor release. The previous `auth.protect()` syntax
-// works on the old API; the current API requires `await auth.protect()`
-// inside an async handler. This change makes the middleware compatible with
-// both API shapes.
-export default clerkMiddleware(async (auth, req) => {
+// Clerk 5.x syntax: `auth` is a function that returns the auth context
+// when called. To enforce route protection, call `auth()` first, then
+// `.protect()` on the result. In Clerk 6.x this changes to `auth.protect()`
+// (no call), but we're on 5.7.6 and use the 5.x pattern.
+//
+// Reference: https://clerk.com/docs/reference/nextjs/clerk-middleware (v5)
+export default clerkMiddleware((auth, req) => {
   if (isProtectedRoute(req)) {
-    await auth.protect();
+    auth().protect();
   }
 });
 
