@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock, Plus, Edit, Archive, RotateCcw, FileText, Shield, Sparkles } from "lucide-react";
+import { Clock, Plus, Edit, Archive, RotateCcw, FileText, Shield, ShieldOff, Sparkles, MapPin, Mail } from "lucide-react";
 import { TOKENS, FONTS } from "../wizard/shared/tokens";
 
 /**
@@ -36,6 +36,11 @@ const EVENT_DISPLAY = {
   // Sprint 7+
   notarization_scheduled: { icon: Clock, label: "Notarization scheduled", tone: "info" },
   notarization_completed: { icon: Shield, label: "Notarization completed", tone: "success" },
+  // Sprint 4c — revocation lifecycle
+  revocation_executed: { icon: ShieldOff, label: "Revocation executed", tone: "warning" },
+  poa_status_changed: { icon: ShieldOff, label: "POA status changed", tone: "warning" },
+  revocation_notice_status_changed: { icon: Mail, label: "Notice status updated", tone: "info" },
+  revocation_recording_completed: { icon: MapPin, label: "County recording filed", tone: "success" },
 };
 
 const TONE_COLORS = {

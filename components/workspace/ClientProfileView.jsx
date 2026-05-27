@@ -7,6 +7,7 @@ import {
   Archive,
   RotateCcw,
   Shield,
+  ShieldOff,
   FileText,
   Sparkles,
   Save,
@@ -33,7 +34,7 @@ import { TOKENS, FONTS } from "../wizard/shared/tokens";
  * Archive flow uses ConfirmDialog to prevent accidents.
  */
 
-export function ClientProfileView({ client, auditEvents, documents, wizardSessions }) {
+export function ClientProfileView({ client, auditEvents, documents, wizardSessions, revocations }) {
   const router = useRouter();
   const isArchived = client.status === "archived";
 
@@ -366,6 +367,22 @@ export function ClientProfileView({ client, auditEvents, documents, wizardSessio
           )}
         </SectionCard>
 
+        {/* Revocations — Sprint 4c R3. Only shown when revocations exist
+            for this client. Empty state is hidden (don't clutter the page
+            with a "no revocations yet" block when most clients won't have any). */}
+        {revocations && revocations.length > 0 && (
+          <SectionCard
+            label="Revocations"
+            description={`${revocations.length} revocation${revocations.length === 1 ? "" : "s"} on file for this client.`}
+          >
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {revocations.map((rev) => (
+                <RevocationRow key={rev.id} revocation={rev} clientId={client.id} />
+              ))}
+            </div>
+          </SectionCard>
+        )}
+
         {/* Documents stub */}
         <SectionCard
           label="Documents"
@@ -676,6 +693,27 @@ function DocumentRow({ doc, clientId }) {
       <DocumentStatusBadge status={doc.status} />
       {isRevokable && clientId && (
         <a
+          href={`/app/clients/${clientId}/present?documentId=${doc.id}`}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            padding: "6px 10px",
+            background: TOKENS.PAPER,
+            color: "#1E40AF",
+            border: "1px solid #BFDBFE",
+            borderRadius: 6,
+            fontSize: 11.5,
+            fontWeight: 600,
+            textDecoration: "none",
+            whiteSpace: "nowrap",
+          }}
+        >
+          Generate packet
+        </a>
+      )}
+      {isRevokable && clientId && (
+        <a
           href={`/app/clients/${clientId}/revoke?documentId=${doc.id}`}
           style={{
             display: "inline-flex",
@@ -698,3 +736,92 @@ function DocumentRow({ doc, clientId }) {
     </div>
   );
 }
+
+/**
+ * RevocationRow — compact row used in the Revocations section of the
+ * client profile. Shows scope, status, counts, links to the detail view.
+ * Sprint 4c R3.
+ */
+function RevocationRow({ revocation, clientId }) {
+  const status = REVOCATION_STATUS_VISUAL[revocation.status] || REVOCATION_STATUS_VISUAL.draft;
+  const scopeLabel = REVOCATION_SCOPE_LABELS[revocation.scope] || revocation.scope;
+
+  return (
+    <a
+      href={`/app/clients/${clientId}/revocations/${revocation.id}`}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        padding: "12px 14px",
+        background: TOKENS.PAPER_2,
+        border: `1px solid ${TOKENS.LINE}`,
+        borderRadius: 7,
+        textDecoration: "none",
+        color: "inherit",
+      }}
+    >
+      <div
+        style={{
+          width: 32,
+          height: 32,
+          borderRadius: 8,
+          background: "#FEF2F2",
+          border: "1px solid #FECACA",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          color: "#B91C1C",
+        }}
+      >
+        <ShieldOff size={14} strokeWidth={1.8} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 500, color: TOKENS.INK, marginBottom: 2 }}>
+          {scopeLabel}
+        </div>
+        <div style={{ fontSize: 11, color: TOKENS.INK_60, fontFamily: FONTS.MONO }}>
+          {revocation.executedAt
+            ? `Executed ${new Date(revocation.executedAt).toLocaleDateString()}`
+            : `Draft created ${new Date(revocation.createdAt).toLocaleDateString()}`}
+          {typeof revocation.noticesTotal === "number" && (
+            <>
+              {" · "}
+              {revocation.noticesSent}/{revocation.noticesTotal} notices sent
+            </>
+          )}
+        </div>
+      </div>
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          padding: "3px 8px",
+          background: status.bg,
+          color: status.color,
+          borderRadius: 999,
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: 0.2,
+          whiteSpace: "nowrap",
+        }}
+      >
+        {status.label}
+      </span>
+    </a>
+  );
+}
+
+const REVOCATION_STATUS_VISUAL = {
+  draft: { label: "Draft", bg: "#E5E7EB", color: "#374151" },
+  executed: { label: "Executed", bg: "#FEF3C7", color: "#92400E" },
+  notice_in_progress: { label: "Notice In Progress", bg: "#DBEAFE", color: "#1E40AF" },
+  complete: { label: "Complete", bg: "#D1FAE5", color: "#065F46" },
+};
+
+const REVOCATION_SCOPE_LABELS = {
+  specific_poa: "Revokes a specific Power of Attorney",
+  all_prior: "Revokes this and all prior financial POAs",
+  agent_only: "Revokes a specific agent's authority",
+};
