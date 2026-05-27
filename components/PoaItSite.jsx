@@ -170,6 +170,18 @@ function Nav({ onStart }) {
         <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
           <SignedOut>
             <Link
+              href="/sign-up"
+              style={{
+                fontSize: 14,
+                color: INK_60,
+                textDecoration: "none",
+                fontWeight: 450,
+              }}
+              className="underline-link"
+            >
+              Sign up
+            </Link>
+            <Link
               href="/sign-in"
               style={{
                 fontSize: 14,
