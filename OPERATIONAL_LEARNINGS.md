@@ -130,4 +130,75 @@ For any dependency version bump beyond patch-level:
 
 ---
 
+## L004 — Verify git tracking after applying patch zips
+
+**Lesson learned in:** Sprint 4d R1 deploy failure (2026-05-27)
+
+**What happened:**
+- Sprint 4c R3 patch zip was applied successfully on 2026-05-23
+- Three new component files (`NoticeTracker.jsx`, `RecordingTracker.jsx`, `RevocationDetailView.jsx`) were unzipped into `components/revocation/`
+- The files were committed to git — but **three of them were silently skipped** during `git add`
+- All R3 deploys succeeded because Vercel's build cache still had references to the files
+- Four days later, when Sprint 4d R1 invalidated the cache and forced a fresh build from the repo, Vercel reported "module not found" for the missing file
+- The local filesystem still had the files; only git was missing them
+
+**Why it happened:**
+- Likely cause: when running `git add components/`, three files weren't staged. Possible reasons:
+  - Editor lock (an IDE had the files open in a way that interfered)
+  - Tab-completion edge case in the shell
+  - Files created in a way that confused git's working-tree scan
+- The bug was invisible because:
+  - Local dev kept working (files were on disk)
+  - Vercel's incremental builds re-used cached artifacts
+  - Only a full rebuild triggered the discovery
+
+**Rules for going forward:**
+
+1. **After every patch zip is applied and `git add`-ed, verify git-tracked file count matches filesystem count.**
+
+   Quick check:
+   ```
+   ls <new-directory>/ | wc -l
+   git ls-files <new-directory>/ | wc -l
+   ```
+
+   Numbers should match. If they don't, run `git status <new-directory>/` and look for "Untracked files" — anything red is missing from git.
+
+2. **Use `git add -A` rather than `git add <path>` when applying patch zips.**
+
+   `git add -A` stages every change including untracked files. `git add <path>` can silently miss files depending on shell/editor state. Patch zips frequently introduce new files; `-A` is the safer default.
+
+3. **Treat "build was failing for an old code path" as a warning sign.**
+
+   If Vercel fails on code you didn't recently touch, suspect a latent file-tracking or cache-invalidation issue. Don't fix the build error by changing the recently-touched code — investigate whether the OLD code is actually intact in the repo.
+
+---
+
+## DEPLOY_CHECKLIST (updated)
+
+For any deploy that touches:
+- Authentication code (middleware.js, Clerk components, `auth()` calls)
+- Database code (schema.js, server/*.js)
+- Dependencies (`npm install` of anything)
+- **Any patch zip introducing new files (per L004)**
+
+Before pushing:
+
+- [ ] `npm run build` completes locally with no errors
+- [ ] If a patch zip was applied: verify `ls -1 <new-dir>/ | wc -l` matches `git ls-files <new-dir>/ | wc -l`
+- [ ] If auth code changed: walk through sign-in → workspace → sign-out manually
+- [ ] If DB code changed: open a client profile and verify it loads
+- [ ] If dependencies changed: smoke test BOTH auth and DB paths
+- [ ] Use `git add -A` or explicitly list new files when staging — don't rely on `git add <dir>` to catch everything
+
+After pushing:
+
+- [ ] Wait for Vercel deploy to show "Ready" status
+- [ ] Visit `/` (homepage) — should load
+- [ ] If signed-out behavior changed: incognito test
+- [ ] Visit `/app` (protected route) — should require auth and then load
+- [ ] If anything looks off: pull Vercel Runtime Logs for the failed request before changing more code
+
+---
+
 This document evolves. Add new lessons as they emerge.
