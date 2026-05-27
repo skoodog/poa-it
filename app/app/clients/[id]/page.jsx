@@ -1,12 +1,14 @@
 import { notFound } from "next/navigation";
 import { ClientProfileView } from "../../../../components/workspace/ClientProfileView";
 import { getClientWithRelations } from "../../../../lib/server/clients";
+import { getRevocationsForClient } from "../../../../lib/server/revocations";
 
 /**
  * /app/clients/[id]
  *
- * Fetches the client and their related documents, wizard sessions, and
- * audit events in one round trip via getClientWithRelations.
+ * Fetches the client and their related documents, wizard sessions, audit
+ * events, and revocations in one server-side bundle. Passes them all to
+ * the client component for rendering.
  *
  * 404 if the client doesn't exist or belongs to a different firm.
  */
@@ -20,6 +22,7 @@ export default async function ClientProfilePage({ params }) {
   if (!result) notFound();
 
   const { documents, wizardSessions, auditEvents, ...client } = result;
+  const revocations = await getRevocationsForClient(id);
 
   return (
     <ClientProfileView
@@ -27,6 +30,7 @@ export default async function ClientProfilePage({ params }) {
       documents={documents}
       wizardSessions={wizardSessions}
       auditEvents={auditEvents}
+      revocations={revocations}
     />
   );
 }
