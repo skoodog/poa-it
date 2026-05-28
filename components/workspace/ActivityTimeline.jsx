@@ -46,6 +46,7 @@ const EVENT_DISPLAY = {
   presentation_status_changed: { icon: Send, label: "Institution response recorded", tone: "info" },
   // Sprint 5 — document lifecycle
   document_created: { icon: FileText, label: "Draft POA created", tone: "info" },
+  document_locked_for_signing: { icon: Shield, label: "Locked for signing", tone: "success" },
 };
 
 const TONE_COLORS = {

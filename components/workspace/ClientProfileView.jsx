@@ -672,7 +672,14 @@ function Field({ label, required, optional, input, helpText }) {
 
 function DocumentRow({ doc, clientId }) {
   const isTerminalState = doc.status === "revoked" || doc.status === "superseded";
-  const isRevokable =
+  const isDraft = doc.status === "draft";
+  // Sprint 5: presentation/revocation operate on a document that's at least
+  // locked for signing (a real, frozen artifact) or executed. The legacy
+  // statuses (generated/signed/notarized/delivered) are kept working too for
+  // any pre-existing rows, but new documents flow draft → locked → executed.
+  const isPresentable =
+    doc.status === "locked_for_signing" ||
+    doc.status === "executed" ||
     doc.status === "generated" ||
     doc.status === "signed" ||
     doc.status === "notarized" ||
@@ -689,10 +696,11 @@ function DocumentRow({ doc, clientId }) {
         alignItems: "center",
         gap: 12,
         opacity: isTerminalState ? 0.78 : 1,
+        flexWrap: "wrap",
       }}
     >
       <FileText size={14} strokeWidth={1.8} color={TOKENS.INK_60} />
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ flex: 1, minWidth: 120 }}>
         <div
           style={{
             fontSize: 13,
@@ -705,52 +713,143 @@ function DocumentRow({ doc, clientId }) {
         </div>
         <div style={{ fontSize: 11, color: TOKENS.INK_60, fontFamily: FONTS.MONO, marginTop: 2 }}>
           {doc.createdAt ? new Date(doc.createdAt).toLocaleDateString() : ""}
+          {doc.lockedAt && (
+            <> · locked {new Date(doc.lockedAt).toLocaleDateString()}</>
+          )}
         </div>
       </div>
       <DocumentStatusBadge status={doc.status} />
-      {isRevokable && clientId && (
-        <a
-          href={`/app/clients/${clientId}/present?documentId=${doc.id}`}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 4,
-            padding: "6px 10px",
-            background: TOKENS.PAPER,
-            color: "#1E40AF",
-            border: "1px solid #BFDBFE",
-            borderRadius: 6,
-            fontSize: 11.5,
-            fontWeight: 600,
-            textDecoration: "none",
-            whiteSpace: "nowrap",
-          }}
-        >
+
+      {/* View PDF — draft serves a watermarked regeneration; locked/executed
+          serve the frozen binary. Either way, same endpoint. */}
+      <a
+        href={`/api/documents/${doc.id}/pdf`}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={pdfLinkStyle}
+      >
+        {isDraft ? "View draft" : "View PDF"}
+      </a>
+
+      {/* Lock for signing — only on drafts */}
+      {isDraft && <LockForSigningButton documentId={doc.id} />}
+
+      {isPresentable && clientId && (
+        <a href={`/app/clients/${clientId}/present?documentId=${doc.id}`} style={presentLinkStyle}>
           Generate packet
         </a>
       )}
-      {isRevokable && clientId && (
-        <a
-          href={`/app/clients/${clientId}/revoke?documentId=${doc.id}`}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 4,
-            padding: "6px 10px",
-            background: TOKENS.PAPER,
-            color: "#991B1B",
-            border: "1px solid #FECACA",
-            borderRadius: 6,
-            fontSize: 11.5,
-            fontWeight: 600,
-            textDecoration: "none",
-            whiteSpace: "nowrap",
-          }}
-        >
+      {isPresentable && clientId && (
+        <a href={`/app/clients/${clientId}/revoke?documentId=${doc.id}`} style={revokeLinkStyle}>
           Revoke
         </a>
       )}
     </div>
+  );
+}
+
+const pdfLinkStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 4,
+  padding: "6px 10px",
+  background: TOKENS.PAPER,
+  color: TOKENS.INK,
+  border: `1px solid ${TOKENS.LINE}`,
+  borderRadius: 6,
+  fontSize: 11.5,
+  fontWeight: 600,
+  textDecoration: "none",
+  whiteSpace: "nowrap",
+};
+
+const presentLinkStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 4,
+  padding: "6px 10px",
+  background: TOKENS.PAPER,
+  color: "#1E40AF",
+  border: "1px solid #BFDBFE",
+  borderRadius: 6,
+  fontSize: 11.5,
+  fontWeight: 600,
+  textDecoration: "none",
+  whiteSpace: "nowrap",
+};
+
+const revokeLinkStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 4,
+  padding: "6px 10px",
+  background: TOKENS.PAPER,
+  color: "#991B1B",
+  border: "1px solid #FECACA",
+  borderRadius: 6,
+  fontSize: 11.5,
+  fontWeight: 600,
+  textDecoration: "none",
+  whiteSpace: "nowrap",
+};
+
+/**
+ * LockForSigningButton — freezes a draft into an immutable signing copy.
+ * Sprint 5 R2.
+ */
+function LockForSigningButton({ documentId }) {
+  const [loading, setLoading] = useState(false);
+
+  async function handleLock() {
+    if (typeof window !== "undefined") {
+      const ok = window.confirm(
+        "Lock this POA for signing? This freezes the exact document and its " +
+          "hash. After locking it can't be edited — any change would create a " +
+          "new version."
+      );
+      if (!ok) return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/documents/${documentId}/lock`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.message || `Lock failed (${res.status})`);
+      }
+      if (typeof window !== "undefined") window.location.reload();
+    } catch (err) {
+      setLoading(false);
+      if (typeof window !== "undefined") {
+        window.alert("Could not lock the document: " + err.message);
+      }
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleLock}
+      disabled={loading}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        padding: "6px 10px",
+        background: TOKENS.INK,
+        color: TOKENS.PAPER,
+        border: "none",
+        borderRadius: 6,
+        fontSize: 11.5,
+        fontWeight: 600,
+        cursor: loading ? "wait" : "pointer",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {loading ? "Locking…" : "Lock for signing"}
+    </button>
   );
 }
 

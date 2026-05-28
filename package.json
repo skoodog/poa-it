@@ -7,16 +7,15 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "db:generate": "dotenv -e .env.local -- drizzle-kit generate",
-    "db:push": "dotenv -e .env.local -- drizzle-kit push",
-    "db:studio": "dotenv -e .env.local -- drizzle-kit studio",
-    "db:seed": "dotenv -e .env.local -- node lib/db/seed/run.js",
-    "db:audit-taxonomy": "dotenv -e .env.local -- node lib/db/scripts/audit-taxonomy.js"
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "@clerk/nextjs": "^5.7.0",
     "@neondatabase/serverless": "^0.10.4",
     "@react-pdf/renderer": "^4.1.5",
+    "@vercel/blob": "^2.4.0",
     "drizzle-orm": "^0.36.0",
     "lucide-react": "^0.383.0",
     "next": "^14.2.5",
@@ -25,8 +24,6 @@
   },
   "devDependencies": {
     "dotenv": "^16.4.5",
-    "dotenv-cli": "^11.0.0",
-    "drizzle-kit": "^0.28.0",
-    "pg": "^8.21.0"
+    "drizzle-kit": "^0.28.0"
   }
 }
