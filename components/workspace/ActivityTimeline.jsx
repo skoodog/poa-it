@@ -47,6 +47,8 @@ const EVENT_DISPLAY = {
   // Sprint 5 — document lifecycle
   document_created: { icon: FileText, label: "Draft POA created", tone: "info" },
   document_locked_for_signing: { icon: Shield, label: "Locked for signing", tone: "success" },
+  intake_link_created: { icon: Send, label: "Intake link sent to client", tone: "info" },
+  intake_link_extended: { icon: Send, label: "Intake link extended", tone: "neutral" },
 };
 
 const TONE_COLORS = {

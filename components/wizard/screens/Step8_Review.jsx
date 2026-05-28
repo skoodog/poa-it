@@ -176,7 +176,53 @@ export function Step8_Review({ state, setState, onBack, onContinue }) {
   // Sprint 5: in fill-for-client (pro) mode, the terminal action creates a
   // draft document tied to the client instead of routing to the consumer
   // waitlist. state.mode is set to "pro" by /api/wizard/start-for-client.
+  // In send-link (intake) mode, it finalizes via the token endpoint and
+  // bounces to the intake gate's thank-you state.
   const isProMode = state.mode === "pro";
+  const isIntakeMode = state.mode === "intake";
+
+  function getIntakeToken() {
+    if (typeof window === "undefined") return null;
+    return new URLSearchParams(window.location.search).get("intake");
+  }
+
+  async function handleIntakeFinalize() {
+    if (!canContinue) return;
+    audit.stepCompleted(state.sessionId, "step8_review", { mode: "intake" });
+    const token = getIntakeToken();
+    if (!token) {
+      if (typeof window !== "undefined") window.alert("Missing intake token.");
+      return;
+    }
+    // Push the latest state, then finalize.
+    try {
+      await fetch(`/api/intake/${encodeURIComponent(token)}/sync`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ state }),
+      });
+    } catch {
+      // best-effort
+    }
+    try {
+      const res = await fetch(`/api/intake/${encodeURIComponent(token)}/finalize`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.message || `Submit failed (${res.status})`);
+      }
+      // Return to the gate, which now shows the "submitted / thank you" state.
+      if (typeof window !== "undefined") {
+        window.location.href = `/intake/${encodeURIComponent(token)}`;
+      }
+    } catch (err) {
+      if (typeof window !== "undefined") {
+        window.alert("Could not submit your form: " + err.message);
+      }
+    }
+  }
 
   async function handleGenerateDraft() {
     if (!canContinue) return;
@@ -214,6 +260,10 @@ export function Step8_Review({ state, setState, onBack, onContinue }) {
 
   function handleContinue() {
     if (!canContinue) return;
+    if (isIntakeMode) {
+      handleIntakeFinalize();
+      return;
+    }
     if (isProMode) {
       handleGenerateDraft();
       return;
@@ -278,7 +328,13 @@ export function Step8_Review({ state, setState, onBack, onContinue }) {
       onBack={onBack}
       onContinue={handleContinue}
       canContinue={canContinue}
-      continueLabel={isProMode ? "Generate draft POA" : "Continue to waitlist"}
+      continueLabel={
+        isIntakeMode
+          ? "Submit my Power of Attorney"
+          : isProMode
+          ? "Generate draft POA"
+          : "Continue to waitlist"
+      }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.SANS }}>
         {/* PREVIEW PDF PANEL */}

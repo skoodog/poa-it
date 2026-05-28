@@ -44,7 +44,16 @@ export default defineConfig({
   out: "./lib/db/migrations",
   dialect: "postgresql",
   dbCredentials: {
-    url: neonConnectionUrl(process.env.POSTGRES_URL),
+    // For DDL (push/generate), prefer the DIRECT/unpooled connection —
+    // pgbouncer (pooled) can interfere with multi-statement schema changes.
+    // Tolerate the several names Neon/Vercel integrations use, so an env
+    // pull that renames things can't silently break migrations again.
+    url: neonConnectionUrl(
+      process.env.POSTGRES_URL_NON_POOLING ||
+        process.env.POSTGRES_DATABASE_URL_UNPOOLED ||
+        process.env.POSTGRES_URL ||
+        process.env.DATABASE_URL
+    ),
   },
   verbose: true,
   strict: true,

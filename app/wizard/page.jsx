@@ -42,27 +42,56 @@ import { getAuditLog, clearAuditLog } from "../../lib/audit/logger";
 export default function WizardPage() {
   const [state, setState] = useState(null);
   const [showDebug, setShowDebug] = useState(false);
-  // Sprint 5: when launched as /wizard?session=<id> (fill-for-client), the
-  // wizard runs in server-bound mode — it loads that server session, syncs by
-  // sessionId, and bypasses anonymous localStorage entirely (so the pro's
-  // client work never mingles with any anonymous consumer session).
+  // Sprint 5: server-bound (fill-for-client) mode syncs by sessionId.
   const [boundSessionId, setBoundSessionId] = useState(null);
+  // Sprint 5 R3: intake mode syncs by token (client-facing send-link flow).
+  const [intakeToken, setIntakeToken] = useState(null);
 
-  // Load state from localStorage on mount, or create fresh. If a ?session=
-  // param is present, load that server-bound session instead.
+  // Load state on mount. URL params select the transport:
+  //   ?intake=<token>  → token-gated client intake
+  //   ?session=<id>    → pro-bound fill-for-client
+  //   (neither)        → anonymous consumer (localStorage)
   useEffect(() => {
     let cancelled = false;
 
     async function init() {
       let sessionParam = null;
+      let intakeParam = null;
       if (typeof window !== "undefined") {
         const params = new URLSearchParams(window.location.search);
         if (params.get("debug") === "true") setShowDebug(true);
         sessionParam = params.get("session");
+        intakeParam = params.get("intake");
       }
 
+      // Intake (token) mode
+      if (intakeParam) {
+        try {
+          const res = await fetch(
+            `/api/intake/${encodeURIComponent(intakeParam)}/load`
+          );
+          const json = await res.json();
+          if (cancelled) return;
+          if (json.status === "valid" && json.state) {
+            setIntakeToken(intakeParam);
+            setState(json.state);
+            return;
+          }
+          // Not valid → send the client to the gate page for a clear message.
+          if (typeof window !== "undefined") {
+            window.location.replace(`/intake/${encodeURIComponent(intakeParam)}`);
+          }
+          return;
+        } catch {
+          if (typeof window !== "undefined") {
+            window.location.replace(`/intake/${encodeURIComponent(intakeParam)}`);
+          }
+          return;
+        }
+      }
+
+      // Server-bound (fill-for-client) mode
       if (sessionParam) {
-        // Server-bound (fill-for-client) mode
         try {
           const res = await fetch(
             `/api/wizard/load?sessionId=${encodeURIComponent(sessionParam)}`
@@ -90,12 +119,17 @@ export default function WizardPage() {
     };
   }, []);
 
-  // Sync state to server (debounced 800ms). Bound sessions sync by sessionId;
-  // anonymous sessions sync by anonymousId (handled inside syncToServer).
+  // Sync state to server (debounced 800ms). Transport depends on mode.
   useEffect(() => {
     if (!state) return;
     const handle = setTimeout(() => {
-      if (boundSessionId) {
+      if (intakeToken) {
+        fetch(`/api/intake/${encodeURIComponent(intakeToken)}/sync`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ state }),
+        }).catch(() => {});
+      } else if (boundSessionId) {
         fetch("/api/wizard/sync", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -108,7 +142,7 @@ export default function WizardPage() {
       }
     }, 800);
     return () => clearTimeout(handle);
-  }, [state, boundSessionId]);
+  }, [state, boundSessionId, intakeToken]);
 
   function handleStartOver() {
     if (typeof window !== "undefined") {
@@ -201,7 +235,7 @@ export default function WizardPage() {
             >
               Wizard · beta · Texas
             </span>
-            {!boundSessionId && (
+            {!boundSessionId && !intakeToken && (
               <button
                 onClick={handleStartOver}
                 style={{

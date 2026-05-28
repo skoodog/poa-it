@@ -3,6 +3,7 @@ import { ClientProfileView } from "../../../../components/workspace/ClientProfil
 import { getClientWithRelations } from "../../../../lib/server/clients";
 import { getRevocationsForClient } from "../../../../lib/server/revocations";
 import { getPresentationsForClient } from "../../../../lib/server/presentations";
+import { getPendingIntakesForClient } from "../../../../lib/server/documents";
 
 /**
  * /app/clients/[id]
@@ -25,6 +26,7 @@ export default async function ClientProfilePage({ params }) {
   const { documents, wizardSessions, auditEvents, ...client } = result;
   const revocations = await getRevocationsForClient(id);
   const presentations = await getPresentationsForClient(id);
+  const pendingIntakes = await getPendingIntakesForClient(id);
 
   return (
     <ClientProfileView
@@ -34,6 +36,7 @@ export default async function ClientProfilePage({ params }) {
       auditEvents={auditEvents}
       revocations={revocations}
       presentations={presentations}
+      pendingIntakes={pendingIntakes}
     />
   );
 }

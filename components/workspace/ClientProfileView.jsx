@@ -36,7 +36,7 @@ import { TOKENS, FONTS } from "../wizard/shared/tokens";
  * Archive flow uses ConfirmDialog to prevent accidents.
  */
 
-export function ClientProfileView({ client, auditEvents, documents, wizardSessions, revocations, presentations }) {
+export function ClientProfileView({ client, auditEvents, documents, wizardSessions, revocations, presentations, pendingIntakes }) {
   const router = useRouter();
   const isArchived = client.status === "archived";
 
@@ -404,8 +404,15 @@ export function ClientProfileView({ client, auditEvents, documents, wizardSessio
         <SectionCard
           label="Documents"
           description="Powers of Attorney and supporting documents for this client."
-          rightAction={<CreatePoaButton clientId={client.id} />}
+          rightAction={<DocumentActions clientId={client.id} />}
         >
+          {pendingIntakes && pendingIntakes.length > 0 && (
+            <div style={{ marginBottom: 12 }}>
+              {pendingIntakes.map((intake) => (
+                <PendingIntakeRow key={intake.id} intake={intake} />
+              ))}
+            </div>
+          )}
           {documents && documents.length > 0 ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {documents.map((doc) => (
@@ -429,8 +436,8 @@ export function ClientProfileView({ client, auditEvents, documents, wizardSessio
                 style={{ marginBottom: 8 }}
               />
               <div style={{ fontSize: 13, color: TOKENS.INK_60, lineHeight: 1.5 }}>
-                No documents yet. Use “Create POA” above to fill out a Power of
-                Attorney for this client.
+                No documents yet. Use “Create POA” to fill one out yourself, or
+                “Send intake link” to have the client complete it.
               </div>
             </div>
           )}
@@ -1028,15 +1035,15 @@ function PresentationRow({ presentation, clientId }) {
 }
 
 /**
- * CreatePoaButton — launches fill-for-client intake. Creates a client-bound
- * wizard session server-side, then redirects the pro into the wizard pointed
- * at that session. Sprint 5 R1.
+ * DocumentActions — the two intake entry points: fill-for-client ("Create
+ * POA") and send-link ("Send intake link"). Sprint 5 R1 + R3.
  */
-function CreatePoaButton({ clientId }) {
-  const [loading, setLoading] = useState(false);
+function DocumentActions({ clientId }) {
+  const [creating, setCreating] = useState(false);
+  const [showLinkModal, setShowLinkModal] = useState(false);
 
-  async function handleClick() {
-    setLoading(true);
+  async function handleCreate() {
+    setCreating(true);
     try {
       const res = await fetch("/api/wizard/start-for-client", {
         method: "POST",
@@ -1052,7 +1059,7 @@ function CreatePoaButton({ clientId }) {
         window.location.href = `/wizard?session=${encodeURIComponent(sessionId)}`;
       }
     } catch (err) {
-      setLoading(false);
+      setCreating(false);
       if (typeof window !== "undefined") {
         window.alert("Could not start the POA intake: " + err.message);
       }
@@ -1060,27 +1067,351 @@ function CreatePoaButton({ clientId }) {
   }
 
   return (
-    <button
-      type="button"
-      onClick={handleClick}
-      disabled={loading}
+    <div style={{ display: "inline-flex", gap: 8 }}>
+      <button
+        type="button"
+        onClick={() => setShowLinkModal(true)}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          padding: "8px 14px",
+          background: TOKENS.PAPER,
+          color: TOKENS.INK,
+          border: `1px solid ${TOKENS.LINE}`,
+          borderRadius: 6,
+          fontSize: 12.5,
+          fontWeight: 600,
+          cursor: "pointer",
+          whiteSpace: "nowrap",
+        }}
+      >
+        <Send size={13} strokeWidth={2.2} /> Send intake link
+      </button>
+      <button
+        type="button"
+        onClick={handleCreate}
+        disabled={creating}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          padding: "8px 14px",
+          background: TOKENS.INK,
+          color: TOKENS.PAPER,
+          border: "none",
+          borderRadius: 6,
+          fontSize: 12.5,
+          fontWeight: 600,
+          cursor: creating ? "wait" : "pointer",
+          whiteSpace: "nowrap",
+        }}
+      >
+        <FileText size={13} strokeWidth={2.2} />
+        {creating ? "Starting…" : "Create POA"}
+      </button>
+      {showLinkModal && (
+        <SendIntakeLinkModal clientId={clientId} onClose={() => setShowLinkModal(false)} />
+      )}
+    </div>
+  );
+}
+
+const INTAKE_EXPIRY_CHOICES = [
+  { days: 1, label: "1 day" },
+  { days: 3, label: "3 days" },
+  { days: 7, label: "7 days" },
+  { days: 14, label: "14 days" },
+];
+
+/**
+ * SendIntakeLinkModal — generates a secure intake link with a chosen expiry
+ * and shows it once for the pro to copy. The raw link can't be re-displayed
+ * later (we store only its hash), so copying it now matters. Sprint 5 R3.
+ */
+function SendIntakeLinkModal({ clientId, onClose }) {
+  const [expiryDays, setExpiryDays] = useState(3);
+  const [generating, setGenerating] = useState(false);
+  const [result, setResult] = useState(null);
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function handleGenerate() {
+    setGenerating(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/wizard/create-intake-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId, expiryDays }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.message || `Failed (${res.status})`);
+      }
+      setResult(await res.json());
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  async function handleCopy() {
+    if (!result?.url) return;
+    try {
+      await navigator.clipboard.writeText(result.url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // clipboard may be unavailable; the field is selectable as a fallback
+    }
+  }
+
+  return (
+    <div
       style={{
-        display: "inline-flex",
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.4)",
+        display: "flex",
         alignItems: "center",
-        gap: 6,
-        padding: "8px 14px",
-        background: TOKENS.INK,
-        color: TOKENS.PAPER,
-        border: "none",
-        borderRadius: 6,
-        fontSize: 12.5,
-        fontWeight: 600,
-        cursor: loading ? "wait" : "pointer",
-        whiteSpace: "nowrap",
+        justifyContent: "center",
+        zIndex: 1000,
+        padding: 20,
+      }}
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: TOKENS.PAPER,
+          borderRadius: 12,
+          padding: 24,
+          maxWidth: 520,
+          width: "100%",
+          fontFamily: FONTS.SANS,
+        }}
+      >
+        <h3 style={{ fontSize: 17, fontWeight: 600, color: TOKENS.INK, margin: "0 0 6px" }}>
+          Send an intake link
+        </h3>
+        <p style={{ fontSize: 13, color: TOKENS.INK_60, lineHeight: 1.5, margin: "0 0 18px" }}>
+          The client opens the link, fills out the Power of Attorney themselves,
+          and the finished draft lands here on their profile. For security the
+          link expires — choose how long it should stay valid.
+        </p>
+
+        {!result ? (
+          <>
+            <div
+              style={{
+                fontSize: 11,
+                fontFamily: FONTS.MONO,
+                color: TOKENS.INK_60,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                fontWeight: 600,
+                marginBottom: 8,
+              }}
+            >
+              Link expires after
+            </div>
+            <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
+              {INTAKE_EXPIRY_CHOICES.map((choice) => (
+                <button
+                  key={choice.days}
+                  type="button"
+                  onClick={() => setExpiryDays(choice.days)}
+                  style={{
+                    padding: "8px 14px",
+                    borderRadius: 6,
+                    border: `1.5px solid ${expiryDays === choice.days ? TOKENS.INK : TOKENS.LINE}`,
+                    background: expiryDays === choice.days ? TOKENS.INK : TOKENS.PAPER,
+                    color: expiryDays === choice.days ? TOKENS.PAPER : TOKENS.INK,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  {choice.label}
+                </button>
+              ))}
+            </div>
+            {error && (
+              <div style={{ fontSize: 12.5, color: "#991B1B", marginBottom: 12 }}>{error}</div>
+            )}
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <button type="button" onClick={onClose} style={ghostBtnStyle}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleGenerate}
+                disabled={generating}
+                style={primaryBtnStyle(generating)}
+              >
+                {generating ? "Generating…" : "Generate link"}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div
+              style={{
+                fontSize: 11,
+                fontFamily: FONTS.MONO,
+                color: TOKENS.INK_60,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                fontWeight: 600,
+                marginBottom: 8,
+              }}
+            >
+              Copy this link now — it won't be shown again
+            </div>
+            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+              <input
+                readOnly
+                value={result.url}
+                onFocus={(e) => e.target.select()}
+                style={{
+                  flex: 1,
+                  padding: "9px 12px",
+                  fontSize: 12.5,
+                  fontFamily: FONTS.MONO,
+                  border: `1px solid ${TOKENS.LINE}`,
+                  borderRadius: 6,
+                  color: TOKENS.INK,
+                  background: TOKENS.PAPER_2,
+                  outline: "none",
+                }}
+              />
+              <button type="button" onClick={handleCopy} style={primaryBtnStyle(false)}>
+                {copied ? "Copied!" : "Copy"}
+              </button>
+            </div>
+            <p style={{ fontSize: 12, color: TOKENS.INK_60, margin: "0 0 18px" }}>
+              Expires {new Date(result.expiresAt).toLocaleString()}. You can extend
+              it later from the pending list below.
+            </p>
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  if (typeof window !== "undefined") window.location.reload();
+                }}
+                style={primaryBtnStyle(false)}
+              >
+                Done
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const ghostBtnStyle = {
+  padding: "9px 14px",
+  background: "transparent",
+  color: TOKENS.INK_60,
+  border: "none",
+  borderRadius: 6,
+  fontSize: 13,
+  fontWeight: 500,
+  cursor: "pointer",
+};
+
+function primaryBtnStyle(busy) {
+  return {
+    padding: "9px 16px",
+    background: TOKENS.INK,
+    color: TOKENS.PAPER,
+    border: "none",
+    borderRadius: 6,
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: busy ? "wait" : "pointer",
+  };
+}
+
+/**
+ * PendingIntakeRow — an outstanding send-link intake, with its status and an
+ * Extend action. The raw link isn't re-shown (only its hash is stored), but
+ * extension keeps the link the pro already sent working longer. Sprint 5 R3.
+ */
+function PendingIntakeRow({ intake }) {
+  const [extending, setExtending] = useState(false);
+  const [expiresAt, setExpiresAt] = useState(intake.expiresAt);
+  const [expired, setExpired] = useState(intake.expired);
+
+  async function handleExtend() {
+    setExtending(true);
+    try {
+      const res = await fetch("/api/wizard/extend-intake", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: intake.id, expiryDays: 7 }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.message || `Extend failed (${res.status})`);
+      }
+      const data = await res.json();
+      setExpiresAt(data.expiresAt);
+      setExpired(false);
+    } catch (err) {
+      if (typeof window !== "undefined") window.alert("Could not extend: " + err.message);
+    } finally {
+      setExtending(false);
+    }
+  }
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        padding: "10px 14px",
+        background: "#EFF6FF",
+        border: "1px solid #BFDBFE",
+        borderRadius: 7,
+        marginBottom: 8,
       }}
     >
-      <FileText size={13} strokeWidth={2.2} />
-      {loading ? "Starting…" : "Create POA"}
-    </button>
+      <Send size={14} strokeWidth={1.8} color="#1E40AF" />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 12.5, fontWeight: 600, color: "#1E3A8A" }}>
+          {expired ? "Intake link expired" : "Intake link sent — awaiting client"}
+        </div>
+        <div style={{ fontSize: 11, color: "#1E3A8A", opacity: 0.8, fontFamily: FONTS.MONO }}>
+          {expiresAt
+            ? `${expired ? "Expired" : "Expires"} ${new Date(expiresAt).toLocaleDateString()}`
+            : ""}
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={handleExtend}
+        disabled={extending}
+        style={{
+          padding: "5px 10px",
+          background: TOKENS.PAPER,
+          color: "#1E40AF",
+          border: "1px solid #BFDBFE",
+          borderRadius: 6,
+          fontSize: 11.5,
+          fontWeight: 600,
+          cursor: extending ? "wait" : "pointer",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {extending ? "Extending…" : "Extend 7 days"}
+      </button>
+    </div>
   );
 }
