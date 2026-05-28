@@ -20,6 +20,25 @@
 import { Document, Page, Text, View, Image } from "@react-pdf/renderer";
 import { styles, FONTS, SIZES, COLORS } from "../styles";
 import { Watermark } from "../sections/Watermark";
+import {
+  getPowerByKey,
+  getPowerDisplayName,
+} from "../../taxonomy/poaTaxonomy";
+
+// Sprint 4d.5: power formatting now sources from the canonical taxonomy.
+// Returns the formatted "(LETTER) DisplayName" label, key as fallback.
+function packetPowerLabel(key) {
+  const p = getPowerByKey(key);
+  if (!p) return key;
+  return `(${p.letter}) ${p.displayName}`;
+}
+
+// Returns the consumer-friendly description for expanded power rows.
+// Falls back to null if not in taxonomy (no description rendered).
+function packetPowerDescription(key) {
+  const p = getPowerByKey(key);
+  return p?.plainEnglishExamples || null;
+}
 
 function getLogoUrl() {
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}/poa-it-logo.png`;
@@ -834,11 +853,11 @@ function PowersList({ powers, expanded }) {
           <Text style={[styles.body, { width: 16 }]}>•</Text>
           <View style={{ flex: 1 }}>
             <Text style={[styles.body, { fontFamily: "Times-Bold" }]}>
-              {POWER_LABELS[powerKey] || powerKey}
+              {packetPowerLabel(powerKey)}
             </Text>
-            {expanded && POWER_DESCRIPTIONS[powerKey] && (
+            {expanded && packetPowerDescription(powerKey) && (
               <Text style={[styles.bodyTight, { fontSize: 10.5, marginTop: 2 }]}>
-                {POWER_DESCRIPTIONS[powerKey]}
+                {packetPowerDescription(powerKey)}
               </Text>
             )}
           </View>
@@ -909,45 +928,10 @@ function PageNumber() {
 // =============================================================================
 // POWER LABEL REGISTRY
 // =============================================================================
-
-const POWER_LABELS = {
-  real_property: "(A) Real property transactions",
-  tangible_personal_property: "(B) Tangible personal property transactions",
-  stocks_and_bonds: "(C) Stock and bond transactions",
-  commodity_and_option: "(D) Commodity and option transactions",
-  banking_and_financial: "(E) Banking and other financial institution transactions",
-  business_operating: "(F) Business operating transactions",
-  insurance_and_annuity: "(G) Insurance and annuity transactions",
-  estate_trust_beneficiary: "(H) Estate, trust, and other beneficiary transactions",
-  claims_and_litigation: "(I) Claims and litigation",
-  personal_family_maintenance: "(J) Personal and family maintenance",
-  government_benefits: "(K) Benefits from social security, Medicare, Medicaid, or other governmental programs, or civil or military service",
-  retirement_plan: "(L) Retirement plan transactions",
-  tax_matters: "(M) Tax matters",
-  digital_assets: "(N) Digital assets and the content of an electronic communication",
-  all_powers: "(O) ALL OF THE POWERS LISTED IN (A) THROUGH (N)",
-};
-
-const POWER_DESCRIPTIONS = {
-  real_property:
-    "Purchasing, selling, leasing, mortgaging, and managing real estate; executing deeds, deeds of trust, and other recordable instruments.",
-  banking_and_financial:
-    "Opening, closing, and managing deposit accounts; signing checks; making deposits and withdrawals; obtaining account information.",
-  stocks_and_bonds:
-    "Buying, selling, and managing securities; executing trades; managing investment accounts.",
-  commodity_and_option:
-    "Buying, selling, and managing commodities and options contracts.",
-  insurance_and_annuity:
-    "Purchasing, modifying, surrendering, and collecting on insurance policies and annuity contracts.",
-  retirement_plan:
-    "Managing IRAs, 401(k)s, pensions, and other retirement plans; making distribution and rollover elections.",
-  tax_matters:
-    "Filing tax returns; representing the principal before tax authorities; making tax elections.",
-  government_benefits:
-    "Applying for and managing Social Security, Medicare, Medicaid, and similar government benefit programs.",
-  digital_assets:
-    "Accessing and managing the principal's online accounts, digital files, and electronic communications.",
-};
+// Sprint 4d.5: power labels and descriptions source from the canonical
+// taxonomy module. Previously this file had its own POWER_LABELS hash
+// (with a typo'd "personal_family_maintenance" key) and a partial
+// POWER_DESCRIPTIONS hash that diverged from the taxonomy.
 
 // =============================================================================
 // HELPERS

@@ -5,40 +5,17 @@ import { Check, Plus, X } from "lucide-react";
 import { TOKENS, FONTS } from "../wizard/shared/tokens";
 import { PresentationWizardShell } from "./PresentationWizardShell";
 import { updatePresentationState } from "../../lib/wizard/presentationState";
+import {
+  POWERS,
+  getPowerDisplayName,
+  getPowerLetter,
+} from "../../lib/taxonomy/poaTaxonomy";
 
-const POWER_LABELS = {
-  real_property: "Real property transactions",
-  tangible_personal_property: "Tangible personal property transactions",
-  stocks_and_bonds: "Stock and bond transactions",
-  commodity_and_option: "Commodity and option transactions",
-  banking_and_financial: "Banking and financial institution transactions",
-  business_operating: "Business operating transactions",
-  insurance_and_annuity: "Insurance and annuity transactions",
-  estate_trust_beneficiary: "Estate, trust, and other beneficiary transactions",
-  claims_and_litigation: "Claims and litigation",
-  personal_family_maintenance: "Personal and family maintenance",
-  government_benefits: "Government benefits (Social Security, Medicare, Medicaid, etc.)",
-  retirement_plan: "Retirement plan transactions",
-  tax_matters: "Tax matters",
-  digital_assets: "Digital assets and electronic communications",
-};
-
-const POWER_LETTERS = {
-  real_property: "A",
-  tangible_personal_property: "B",
-  stocks_and_bonds: "C",
-  commodity_and_option: "D",
-  banking_and_financial: "E",
-  business_operating: "F",
-  insurance_and_annuity: "G",
-  estate_trust_beneficiary: "H",
-  claims_and_litigation: "I",
-  personal_family_maintenance: "J",
-  government_benefits: "K",
-  retirement_plan: "L",
-  tax_matters: "M",
-  digital_assets: "N",
-};
+// Sprint 4d.5: power display now sources from the canonical taxonomy.
+// Previously this file had local POWER_LABELS and POWER_LETTERS hashes
+// which (a) duplicated data and (b) contained a typo
+// ("personal_family_maintenance" instead of "personal_and_family_maintenance")
+// that would have silently broken Limited-scope J grants.
 
 /**
  * Step 3 — Confirm or adjust the authority subset surfaced in the packet.
@@ -56,7 +33,7 @@ export function PresentationStep3_Authority({ state, setState, onBack, onContinu
   // as a literal — we expand it to the full list)
   const grantedRaw = state.originalPoaPowersGranted || [];
   const granted = grantedRaw.includes("all_powers")
-    ? Object.keys(POWER_LABELS)
+    ? POWERS.filter((p) => p.letter !== "O").map((p) => p.key)
     : grantedRaw.filter((p) => p !== "all_powers");
 
   function togglePower(powerKey) {
@@ -151,10 +128,10 @@ function PowerToggle({ powerKey, checked, onToggle }) {
           letterSpacing: 0.5,
         }}
       >
-        ({POWER_LETTERS[powerKey]})
+        ({getPowerLetter(powerKey) || "?"})
       </div>
       <div style={{ flex: 1, fontSize: 14, color: TOKENS.INK }}>
-        {POWER_LABELS[powerKey] || powerKey}
+        {getPowerDisplayName(powerKey)}
       </div>
     </button>
   );

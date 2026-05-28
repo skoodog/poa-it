@@ -25,9 +25,30 @@
 
 import { View, Text } from "@react-pdf/renderer";
 import { styles, SIZES, COLORS, FONTS } from "../styles";
+import {
+  getPowerByKey,
+  getHotPowerByKey,
+} from "../../taxonomy/poaTaxonomy";
 
 const TEMPLATE_VERSION = "Texas SDPOA v2026.05.22";
 const JURISDICTION = "Texas";
+
+/**
+ * Sprint 4d.5: power label formatting now sources from the canonical
+ * taxonomy. Returns "(LETTER) DisplayName" for known keys, key itself
+ * for unknown keys (defensive fallback so internal tokens never leak).
+ */
+function powerLabel(key) {
+  const p = getPowerByKey(key);
+  if (!p) return key;
+  return `(${p.letter}) ${p.displayName}`;
+}
+
+function hotPowerLabel(key) {
+  const p = getHotPowerByKey(key);
+  if (!p) return humanize(key);
+  return p.displayName;
+}
 
 export function DocumentGenerationCertificate({ wizardState, watermarked }) {
   const principalName = wizardState.principalFullLegalName || "—";
@@ -181,32 +202,15 @@ function CertSeparator() {
 }
 
 // Map the wizard state's powersGranted array into a human-readable list
-const POWER_LABELS = {
-  real_property: "(A) Real property transactions",
-  tangible_personal_property: "(B) Tangible personal property transactions",
-  stocks_and_bonds: "(C) Stock and bond transactions",
-  commodity_and_option: "(D) Commodity and option transactions",
-  banking_and_financial: "(E) Banking and other financial institution transactions",
-  business_operating: "(F) Business operating transactions",
-  insurance_and_annuity: "(G) Insurance and annuity transactions",
-  estate_trust_beneficiary: "(H) Estate, trust, and other beneficiary transactions",
-  claims_and_litigation: "(I) Claims and litigation",
-  personal_and_family_maintenance: "(J) Personal and family maintenance",
-  government_benefits: "(K) Benefits from social security, Medicare, Medicaid, etc.",
-  retirement_plan: "(L) Retirement plan transactions",
-  tax_matters: "(M) Tax matters",
-  digital_assets: "(N) Digital assets and the content of an electronic communication",
-  all_powers: "(O) ALL powers listed in (A) through (N)",
-};
-
+// using the canonical taxonomy.
 function formatPowersSelected(powersGranted) {
   const granted = Array.isArray(powersGranted) ? powersGranted : [];
   if (granted.length === 0) return "None";
   if (granted.includes("all_powers")) {
-    return POWER_LABELS.all_powers;
+    return powerLabel("all_powers");
   }
   return granted
-    .map((k) => POWER_LABELS[k] || k)
+    .map((k) => powerLabel(k))
     .join("\n");
 }
 
@@ -233,22 +237,15 @@ function formatCompensation(wizardState) {
   return "No option initialed; statutory default acknowledged by principal";
 }
 
-// Sprint 4b.2 fix: labels keyed to wizard's actual keys. Prior version used
-// long-form keys that never matched the wizard, exposing raw tokens like
-// "hot_power_gifts" in the rendered certificate.
-const HOT_POWER_LABELS = {
-  hot_power_trust: "Create, amend, revoke, or terminate an inter vivos trust",
-  hot_power_gifts: "Make a gift (subject to § 751.032 limits)",
-  hot_power_survivorship: "Create or change rights of survivorship",
-  hot_power_beneficiary: "Create or change a beneficiary designation",
-  hot_power_delegate: "Authorize another person to exercise authority",
-};
-
+// Sprint 4d.5: hot power labels now source from the canonical taxonomy.
+// Previous bug (Sprint 4b.2 fix): long-form keys never matched the wizard.
+// Current state: taxonomy stores short forms (hot_power_trust, etc.) matching
+// what the wizard actually writes to wizardSessions.answers.hotPowersGranted.
 function formatHotPowersSelected(hotPowersGranted) {
   const granted = Array.isArray(hotPowersGranted) ? hotPowersGranted : [];
   if (granted.length === 0) return "None";
   return granted
-    .map((k) => HOT_POWER_LABELS[k] || humanize(k))
+    .map((k) => hotPowerLabel(k))
     .join("\n");
 }
 

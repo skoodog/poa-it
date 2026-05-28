@@ -174,18 +174,64 @@ For any dependency version bump beyond patch-level:
 
 ---
 
-## DEPLOY_CHECKLIST (updated)
+## L005 — Audit production data BEFORE shipping a "single source of truth"
+
+**Lesson learned in:** Sprint 4d.5 Round 2 (2026-05-27)
+
+**What happened:**
+- Round 1 shipped the canonical taxonomy module by reading the clause
+  library JSON file
+- When Round 2 went to refactor `DocumentGenerationCertificate.jsx`, I
+  discovered the hot power keys in the certificate (`hot_power_trust`,
+  `hot_power_gifts`, `hot_power_survivorship`, `hot_power_beneficiary`,
+  `hot_power_delegate`) DID NOT match the clause library's keys
+  (`hot_power_create_amend_trust`, etc.)
+- The clause library was the SOURCE FILE, but the wizard ACTUALLY STORED
+  the short forms
+- The taxonomy I built in Round 1 had the long forms, meaning it didn't
+  match production database reality
+
+**Why it happened:**
+- I assumed the clause library JSON was the canonical source because it
+  had the richest metadata
+- I didn't actually inspect the wizard step component code to confirm
+  what keys it writes to `wizardSessions.answers.hotPowersGranted`
+- The Round 1 audit script DID exist but I didn't run it before shipping
+  the Round 1 taxonomy — running it would have surfaced this immediately
+
+**Rules for going forward:**
+
+1. **When defining a canonical taxonomy, the ground truth is what the
+   database actually contains** — not what a source file claims should be
+   stored.
+   - Read the actual values from production via SELECT queries
+   - Read the storage-emitting code (the wizard step components, in our case)
+   - Don't trust documentation, comments, or seed files alone
+
+2. **Run the audit script BEFORE shipping changes to the taxonomy.**
+   - If you add a new key, run the audit to confirm no row contains the
+     OLD form of that key
+   - If you change a key, run the audit before deploy to catch divergence
+
+3. **Make audit scripts mandatory in the deploy checklist for taxonomy
+   changes**, even when "trivial."
+
+---
+
+
 
 For any deploy that touches:
 - Authentication code (middleware.js, Clerk components, `auth()` calls)
 - Database code (schema.js, server/*.js)
 - Dependencies (`npm install` of anything)
 - **Any patch zip introducing new files (per L004)**
+- **The taxonomy module `lib/taxonomy/poaTaxonomy.js` (per L005)**
 
 Before pushing:
 
 - [ ] `npm run build` completes locally with no errors
 - [ ] If a patch zip was applied: verify `ls -1 <new-dir>/ | wc -l` matches `git ls-files <new-dir>/ | wc -l`
+- [ ] **If the taxonomy changed: run `npm run db:audit-taxonomy` — must return clean**
 - [ ] If auth code changed: walk through sign-in → workspace → sign-out manually
 - [ ] If DB code changed: open a client profile and verify it loads
 - [ ] If dependencies changed: smoke test BOTH auth and DB paths

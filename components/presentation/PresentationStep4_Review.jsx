@@ -4,23 +4,29 @@ import { useState } from "react";
 import { Eye, Send, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { TOKENS, FONTS } from "../wizard/shared/tokens";
 import { PresentationWizardShell } from "./PresentationWizardShell";
+import {
+  getPowerByKey,
+  getPowerLetter,
+  getPowerDisplayName,
+} from "../../lib/taxonomy/poaTaxonomy";
 
-const POWER_LABELS = {
-  real_property: "(A) Real property transactions",
-  tangible_personal_property: "(B) Tangible personal property",
-  stocks_and_bonds: "(C) Stocks and bonds",
-  commodity_and_option: "(D) Commodity and option",
-  banking_and_financial: "(E) Banking and financial",
-  business_operating: "(F) Business operating",
-  insurance_and_annuity: "(G) Insurance and annuity",
-  estate_trust_beneficiary: "(H) Estate, trust, beneficiary",
-  claims_and_litigation: "(I) Claims and litigation",
-  personal_family_maintenance: "(J) Personal and family maintenance",
-  government_benefits: "(K) Government benefits",
-  retirement_plan: "(L) Retirement plans",
-  tax_matters: "(M) Tax matters",
-  digital_assets: "(N) Digital assets",
-};
+/**
+ * Sprint 4d.5: power labels source from canonical taxonomy. Previously this
+ * file had its own POWER_LABELS hash including the typo'd
+ * "personal_family_maintenance" key. The shortened display format used here
+ * (e.g. "(J) Personal and family maintenance") is now derived from
+ * `(letter) displayName` from the taxonomy.
+ *
+ * Some labels in the old hash were aggressively shortened ("Estate, trust,
+ * beneficiary" instead of "Estate, trust, and other beneficiary
+ * transactions"). The taxonomy's longer form is now used everywhere for
+ * consistency — review cards can wrap text, full labels are clearer.
+ */
+function reviewPowerLabel(key) {
+  const p = getPowerByKey(key);
+  if (!p) return key;
+  return `(${p.letter}) ${p.displayName}`;
+}
 
 /**
  * Step 4 — Review the packet contents and generate.
@@ -163,7 +169,7 @@ export function PresentationStep4_Review({ state, presentation, onBack, onGenera
                   key={p}
                   style={{ fontSize: 13, color: TOKENS.INK, marginBottom: 4 }}
                 >
-                  • {POWER_LABELS[p] || p}
+                  • {reviewPowerLabel(p)}
                 </li>
               ))}
             </ul>
