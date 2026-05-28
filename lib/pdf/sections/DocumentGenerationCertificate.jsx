@@ -29,8 +29,8 @@ import {
   getPowerByKey,
   getHotPowerByKey,
 } from "../../taxonomy/poaTaxonomy";
+import { TEMPLATE_VERSION } from "../documentVersion";
 
-const TEMPLATE_VERSION = "Texas SDPOA v2026.05.22";
 const JURISDICTION = "Texas";
 
 /**

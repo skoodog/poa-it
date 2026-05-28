@@ -44,6 +44,8 @@ const EVENT_DISPLAY = {
   // Sprint 4d — institution presentation lifecycle
   presentation_generated: { icon: Send, label: "Institution packet generated", tone: "info" },
   presentation_status_changed: { icon: Send, label: "Institution response recorded", tone: "info" },
+  // Sprint 5 — document lifecycle
+  document_created: { icon: FileText, label: "Draft POA created", tone: "info" },
 };
 
 const TONE_COLORS = {

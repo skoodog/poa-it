@@ -400,11 +400,11 @@ export function ClientProfileView({ client, auditEvents, documents, wizardSessio
           </SectionCard>
         )}
 
-        {/* Documents stub */}
+        {/* Documents */}
         <SectionCard
           label="Documents"
-          rightBadge="Sprint 4"
-          description="POAs and supporting documents for this client appear here once PDF generation ships."
+          description="Powers of Attorney and supporting documents for this client."
+          rightAction={<CreatePoaButton clientId={client.id} />}
         >
           {documents && documents.length > 0 ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -429,8 +429,8 @@ export function ClientProfileView({ client, auditEvents, documents, wizardSessio
                 style={{ marginBottom: 8 }}
               />
               <div style={{ fontSize: 13, color: TOKENS.INK_60, lineHeight: 1.5 }}>
-                No documents yet. Sprint 4 ships PDF generation; Sprint 5 wires the
-                intake flows that produce documents tied to this client.
+                No documents yet. Use “Create POA” above to fill out a Power of
+                Attorney for this client.
               </div>
             </div>
           )}
@@ -925,5 +925,63 @@ function PresentationRow({ presentation, clientId }) {
         {statusDisplay.displayName}
       </span>
     </a>
+  );
+}
+
+/**
+ * CreatePoaButton — launches fill-for-client intake. Creates a client-bound
+ * wizard session server-side, then redirects the pro into the wizard pointed
+ * at that session. Sprint 5 R1.
+ */
+function CreatePoaButton({ clientId }) {
+  const [loading, setLoading] = useState(false);
+
+  async function handleClick() {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/wizard/start-for-client", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.message || `Could not start intake (${res.status})`);
+      }
+      const { sessionId } = await res.json();
+      if (typeof window !== "undefined") {
+        window.location.href = `/wizard?session=${encodeURIComponent(sessionId)}`;
+      }
+    } catch (err) {
+      setLoading(false);
+      if (typeof window !== "undefined") {
+        window.alert("Could not start the POA intake: " + err.message);
+      }
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={loading}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "8px 14px",
+        background: TOKENS.INK,
+        color: TOKENS.PAPER,
+        border: "none",
+        borderRadius: 6,
+        fontSize: 12.5,
+        fontWeight: 600,
+        cursor: loading ? "wait" : "pointer",
+        whiteSpace: "nowrap",
+      }}
+    >
+      <FileText size={13} strokeWidth={2.2} />
+      {loading ? "Starting…" : "Create POA"}
+    </button>
   );
 }

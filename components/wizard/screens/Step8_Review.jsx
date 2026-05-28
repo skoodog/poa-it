@@ -173,8 +173,51 @@ export function Step8_Review({ state, setState, onBack, onContinue }) {
   const allAcksConfirmed = Object.values(acks).every(Boolean);
   const canContinue = allAcksConfirmed;
 
+  // Sprint 5: in fill-for-client (pro) mode, the terminal action creates a
+  // draft document tied to the client instead of routing to the consumer
+  // waitlist. state.mode is set to "pro" by /api/wizard/start-for-client.
+  const isProMode = state.mode === "pro";
+
+  async function handleGenerateDraft() {
+    if (!canContinue) return;
+    audit.stepCompleted(state.sessionId, "step8_review", {
+      allAcknowledgmentsRecorded: true,
+      mode: "pro",
+    });
+    // Ensure the latest state is synced (by sessionId for bound sessions)
+    // before we ask the server to snapshot it into a document.
+    try {
+      await syncToServer(state);
+    } catch {
+      // best-effort; the server already has near-current state
+    }
+    try {
+      const res = await fetch("/api/documents/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ wizardSessionId: state.sessionId }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.message || `Create failed (${res.status})`);
+      }
+      // Return to the client profile, where the new draft now appears.
+      if (typeof window !== "undefined") {
+        window.location.href = `/app/clients/${state.clientId}`;
+      }
+    } catch (err) {
+      if (typeof window !== "undefined") {
+        window.alert("Could not create the draft document: " + err.message);
+      }
+    }
+  }
+
   function handleContinue() {
     if (!canContinue) return;
+    if (isProMode) {
+      handleGenerateDraft();
+      return;
+    }
     audit.stepCompleted(state.sessionId, "step8_review", {
       allAcknowledgmentsRecorded: true,
       finalWizardSummary: {
@@ -235,7 +278,7 @@ export function Step8_Review({ state, setState, onBack, onContinue }) {
       onBack={onBack}
       onContinue={handleContinue}
       canContinue={canContinue}
-      continueLabel="Continue to waitlist"
+      continueLabel={isProMode ? "Generate draft POA" : "Continue to waitlist"}
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.SANS }}>
         {/* PREVIEW PDF PANEL */}

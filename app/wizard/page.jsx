@@ -42,36 +42,73 @@ import { getAuditLog, clearAuditLog } from "../../lib/audit/logger";
 export default function WizardPage() {
   const [state, setState] = useState(null);
   const [showDebug, setShowDebug] = useState(false);
+  // Sprint 5: when launched as /wizard?session=<id> (fill-for-client), the
+  // wizard runs in server-bound mode — it loads that server session, syncs by
+  // sessionId, and bypasses anonymous localStorage entirely (so the pro's
+  // client work never mingles with any anonymous consumer session).
+  const [boundSessionId, setBoundSessionId] = useState(null);
 
-  // Load state from localStorage on mount, or create fresh
+  // Load state from localStorage on mount, or create fresh. If a ?session=
+  // param is present, load that server-bound session instead.
   useEffect(() => {
-    const existing = loadState();
-    if (existing) {
-      setState(existing);
-    } else {
-      setState(createInitialState());
+    let cancelled = false;
+
+    async function init() {
+      let sessionParam = null;
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("debug") === "true") setShowDebug(true);
+        sessionParam = params.get("session");
+      }
+
+      if (sessionParam) {
+        // Server-bound (fill-for-client) mode
+        try {
+          const res = await fetch(
+            `/api/wizard/load?sessionId=${encodeURIComponent(sessionParam)}`
+          );
+          const json = await res.json();
+          if (!cancelled && json.session?.state) {
+            setBoundSessionId(sessionParam);
+            setState(json.session.state);
+            return;
+          }
+        } catch {
+          // fall through to anonymous behavior if the bound load fails
+        }
+      }
+
+      // Anonymous consumer mode (default)
+      if (cancelled) return;
+      const existing = loadState();
+      setState(existing || createInitialState());
     }
 
-    // Check ?debug=true in URL for the debug panel
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get("debug") === "true") setShowDebug(true);
-    }
+    init();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  // Sync state to server (debounced 800ms after the last change). This keeps
-  // the Postgres wizard_sessions row roughly current so server-side features
-  // (PDF generation, professional workspace claim, audit log persistence)
-  // have something to work with. Best-effort — failures are silent.
+  // Sync state to server (debounced 800ms). Bound sessions sync by sessionId;
+  // anonymous sessions sync by anonymousId (handled inside syncToServer).
   useEffect(() => {
     if (!state) return;
     const handle = setTimeout(() => {
-      syncToServer(state).catch(() => {
-        // Non-fatal — localStorage remains the authoritative copy
-      });
+      if (boundSessionId) {
+        fetch("/api/wizard/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId: boundSessionId, state }),
+        }).catch(() => {});
+      } else {
+        syncToServer(state).catch(() => {
+          // Non-fatal — localStorage remains the authoritative copy
+        });
+      }
     }, 800);
     return () => clearTimeout(handle);
-  }, [state]);
+  }, [state, boundSessionId]);
 
   function handleStartOver() {
     if (typeof window !== "undefined") {
@@ -164,19 +201,21 @@ export default function WizardPage() {
             >
               Wizard · beta · Texas
             </span>
-            <button
-              onClick={handleStartOver}
-              style={{
-                fontSize: 12,
-                color: TOKENS.INK_60,
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                textDecoration: "underline",
-              }}
-            >
-              Start over
-            </button>
+            {!boundSessionId && (
+              <button
+                onClick={handleStartOver}
+                style={{
+                  fontSize: 12,
+                  color: TOKENS.INK_60,
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  textDecoration: "underline",
+                }}
+              >
+                Start over
+              </button>
+            )}
           </div>
         </div>
       </header>
