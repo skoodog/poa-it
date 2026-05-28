@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock, Plus, Edit, Archive, RotateCcw, FileText, Shield, ShieldOff, Sparkles, MapPin, Mail } from "lucide-react";
+import { Clock, Plus, Edit, Archive, RotateCcw, FileText, Shield, ShieldOff, Sparkles, MapPin, Mail, Send } from "lucide-react";
 import { TOKENS, FONTS } from "../wizard/shared/tokens";
 
 /**
@@ -41,6 +41,9 @@ const EVENT_DISPLAY = {
   poa_status_changed: { icon: ShieldOff, label: "POA status changed", tone: "warning" },
   revocation_notice_status_changed: { icon: Mail, label: "Notice status updated", tone: "info" },
   revocation_recording_completed: { icon: MapPin, label: "County recording filed", tone: "success" },
+  // Sprint 4d — institution presentation lifecycle
+  presentation_generated: { icon: Send, label: "Institution packet generated", tone: "info" },
+  presentation_status_changed: { icon: Send, label: "Institution response recorded", tone: "info" },
 };
 
 const TONE_COLORS = {

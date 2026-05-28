@@ -13,12 +13,14 @@ import {
   Save,
   Loader2,
   Check,
+  Send,
 } from "lucide-react";
 import { TopBar } from "./TopBar";
 import { ClientStatusBadge } from "./ClientStatusBadge";
 import { DocumentStatusBadge } from "./DocumentStatusBadge";
 import { ActivityTimeline } from "./ActivityTimeline";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { getPresentationStatusDisplay } from "../../lib/taxonomy/poaTaxonomy";
 import { TOKENS, FONTS } from "../wizard/shared/tokens";
 
 /**
@@ -34,7 +36,7 @@ import { TOKENS, FONTS } from "../wizard/shared/tokens";
  * Archive flow uses ConfirmDialog to prevent accidents.
  */
 
-export function ClientProfileView({ client, auditEvents, documents, wizardSessions, revocations }) {
+export function ClientProfileView({ client, auditEvents, documents, wizardSessions, revocations, presentations }) {
   const router = useRouter();
   const isArchived = client.status === "archived";
 
@@ -378,6 +380,21 @@ export function ClientProfileView({ client, auditEvents, documents, wizardSessio
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {revocations.map((rev) => (
                 <RevocationRow key={rev.id} revocation={rev} clientId={client.id} />
+              ))}
+            </div>
+          </SectionCard>
+        )}
+
+        {/* Presentations — Sprint 4d R3. Only shown when presentations exist.
+            Sits alongside Revocations as a parallel lifecycle surface. */}
+        {presentations && presentations.length > 0 && (
+          <SectionCard
+            label="Institution Presentations"
+            description={`${presentations.length} packet${presentations.length === 1 ? "" : "s"} generated for this client.`}
+          >
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {presentations.map((p) => (
+                <PresentationRow key={p.id} presentation={p} clientId={client.id} />
               ))}
             </div>
           </SectionCard>
@@ -825,3 +842,88 @@ const REVOCATION_SCOPE_LABELS = {
   all_prior: "Revokes this and all prior financial POAs",
   agent_only: "Revokes a specific agent's authority",
 };
+
+// Status tone → badge colors for presentation rows
+const PRESENTATION_STATUS_VISUAL = {
+  neutral: { bg: "#E5E7EB", color: "#374151" },
+  info: { bg: "#DBEAFE", color: "#1E40AF" },
+  success: { bg: "#D1FAE5", color: "#065F46" },
+  warning: { bg: "#FEF3C7", color: "#92400E" },
+  danger: { bg: "#FEE2E2", color: "#991B1B" },
+};
+
+/**
+ * PresentationRow — compact row used in the Institution Presentations section
+ * of the client profile. Shows institution name, status, response count, and
+ * links to the presentation detail view. Sprint 4d R3.
+ */
+function PresentationRow({ presentation, clientId }) {
+  const statusDisplay = getPresentationStatusDisplay(presentation.status);
+  const visual = PRESENTATION_STATUS_VISUAL[statusDisplay.tone] || PRESENTATION_STATUS_VISUAL.neutral;
+  const responsesTotal =
+    typeof presentation.responsesTotal === "number" ? presentation.responsesTotal : 0;
+
+  return (
+    <a
+      href={`/app/clients/${clientId}/presentations/${presentation.id}`}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        padding: "12px 14px",
+        background: TOKENS.PAPER_2,
+        border: `1px solid ${TOKENS.LINE}`,
+        borderRadius: 7,
+        textDecoration: "none",
+        color: "inherit",
+      }}
+    >
+      <div
+        style={{
+          width: 32,
+          height: 32,
+          borderRadius: 8,
+          background: "#EFF6FF",
+          border: "1px solid #BFDBFE",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          color: "#1E40AF",
+        }}
+      >
+        <Send size={14} strokeWidth={1.8} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 500, color: TOKENS.INK, marginBottom: 2 }}>
+          {presentation.institutionName}
+        </div>
+        <div style={{ fontSize: 11, color: TOKENS.INK_60, fontFamily: FONTS.MONO }}>
+          Created {new Date(presentation.createdAt).toLocaleDateString()}
+          {responsesTotal > 0 && (
+            <>
+              {" · "}
+              {responsesTotal} response{responsesTotal === 1 ? "" : "s"}
+            </>
+          )}
+        </div>
+      </div>
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          padding: "3px 10px",
+          background: visual.bg,
+          color: visual.color,
+          borderRadius: 999,
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: 0.2,
+          whiteSpace: "nowrap",
+        }}
+      >
+        {statusDisplay.displayName}
+      </span>
+    </a>
+  );
+}
