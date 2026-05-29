@@ -56,7 +56,7 @@ export function RevocationStep1_PickOriginal({
       state={state}
       stepId="step1_pick_original"
       title="Which Power of Attorney do you want to revoke?"
-      subtitle="Pick the document this revocation will supersede. Only active POAs are shown."
+      subtitle="Pick the document this revocation will revoke. Only active POAs are shown."
       onBack={onBack}
       onContinue={onContinue}
       canContinue={canContinue}

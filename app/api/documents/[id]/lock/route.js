@@ -79,6 +79,25 @@ export async function POST(request, { params }) {
       );
     }
 
+    // Sprint 6 — attorney-review correction: drafts flagged for attention
+    // (e.g., created via client-submitted intake) must be reviewed and the
+    // flag dismissed before they can be locked. This encodes the hard
+    // product rule: an unauthenticated client's intake never auto-progresses
+    // past draft; an attorney must affirmatively review.
+    if (doc.attentionRequired) {
+      return NextResponse.json(
+        {
+          error: "attention_required",
+          message:
+            "This draft was created via client intake and requires attorney " +
+            "review before it can be locked for signing. Open the document " +
+            "and confirm the contents, then dismiss the review flag to proceed.",
+          attentionReason: doc.attentionReason,
+        },
+        { status: 400 }
+      );
+    }
+
     // Load the wizard session to render from
     const [session] = await db
       .select()

@@ -247,4 +247,51 @@ After pushing:
 
 ---
 
+## L006 — `vercel env pull` overwrites `.env.local`; DB tooling must load env explicitly and tolerate URL var-name changes
+
+**Lesson learned in:** Sprint 5 Round 3 (2026-05-28)
+
+**What happened:**
+- In Round 2 we ran `vercel env pull .env.local` to fetch the new
+  `BLOB_READ_WRITE_TOKEN` for Vercel Blob.
+- In Round 3, `npm run db:push` then failed with: *"Either connection
+  'url' or 'host', 'database' are required for PostgreSQL database
+  connection."*
+- The variable wasn't actually missing — `POSTGRES_URL` (and the unpooled
+  variants) were all present in `.env.local`. The real cause: `db:push`
+  was defined as a bare `drizzle-kit push` with **no** `dotenv -e .env.local`
+  wrapper, unlike `db:seed`/`db:audit-taxonomy` which load it. It had been
+  silently relying on `POSTGRES_URL` reaching the shell some other way, and
+  the env pull rewrote `.env.local` wholesale and broke that assumption.
+
+**Why it happened:**
+- `vercel env pull` **replaces the entire file** — it doesn't merge. Anything
+  that was reaching the process through ambient shell env (not the file) is
+  gone afterward unless it's also in Vercel's stored set under the same name.
+- `drizzle.config.js` read only `process.env.POSTGRES_URL`. Neon/Vercel
+  integrations expose the URL under several names (`POSTGRES_URL`,
+  `POSTGRES_URL_NON_POOLING`, `POSTGRES_DATABASE_URL_UNPOOLED`,
+  `POSTGRES_PRISMA_URL`, etc.). A single hardcoded name is fragile.
+- The drizzle-kit CLI scripts didn't load `.env.local` explicitly the way the
+  app and the dotenv-wrapped scripts do.
+
+**Rules for going forward:**
+
+1. **DB tooling must load `.env.local` explicitly.** All drizzle-kit scripts
+   are `dotenv -e .env.local -- drizzle-kit <cmd>`, never bare. Never rely on
+   ambient shell env for migrations.
+2. **The connection URL must be read through a fallback chain**, so a rename
+   or env pull can't silently break migrations:
+   `POSTGRES_URL_NON_POOLING || POSTGRES_DATABASE_URL_UNPOOLED || POSTGRES_URL || DATABASE_URL`.
+3. **For DDL (push/generate), prefer the unpooled/direct URL.** Pooled
+   connections (pgbouncer) can interfere with multi-statement schema changes.
+4. **After any `vercel env pull`, re-run a `db:push` (or a dry check) before
+   assuming the DB tooling still works** — the file just got rewritten.
+5. **Tech-debt note:** `db:seed` and `db:audit-taxonomy` currently live only
+   in Rob's local `package.json` (added via one-off `node` one-liners), so a
+   fresh `git clone` won't have them. Commit all `db:*` scripts to version
+   control during a cleanup pass so the toolchain is reproducible.
+
+---
+
 This document evolves. Add new lessons as they emerge.

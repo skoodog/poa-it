@@ -14,6 +14,7 @@ import {
   Loader2,
   Check,
   Send,
+  AlertTriangle,
 } from "lucide-react";
 import { TopBar } from "./TopBar";
 import { ClientStatusBadge } from "./ClientStatusBadge";
@@ -680,10 +681,18 @@ function Field({ label, required, optional, input, helpText }) {
 function DocumentRow({ doc, clientId }) {
   const isTerminalState = doc.status === "revoked" || doc.status === "superseded";
   const isDraft = doc.status === "draft";
+  // Sprint 6 (post-attorney-review correction): documents flagged for
+  // attorney attention block locking and surface a banner with the dismiss
+  // action. Two known reasons:
+  //   - client_submitted_intake — attorney must confirm before locking
+  //   - newer_poa_exists — older POA flagged when a newer one was created
+  const needsAttention = doc.attentionRequired;
   // Sprint 5: presentation/revocation operate on a document that's at least
   // locked for signing (a real, frozen artifact) or executed. The legacy
   // statuses (generated/signed/notarized/delivered) are kept working too for
   // any pre-existing rows, but new documents flow draft → locked → executed.
+  // potential_replacement_review_required is intentionally excluded — the
+  // document is in legal limbo until the attorney dismisses the flag.
   const isPresentable =
     doc.status === "locked_for_signing" ||
     doc.status === "executed" ||
@@ -693,6 +702,14 @@ function DocumentRow({ doc, clientId }) {
     doc.status === "delivered";
 
   return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+      {needsAttention && (
+        <AttentionBanner
+          documentId={doc.id}
+          reason={doc.attentionReason}
+          status={doc.status}
+        />
+      )}
     <div
       style={{
         padding: "12px 14px",
@@ -738,8 +755,9 @@ function DocumentRow({ doc, clientId }) {
         {isDraft ? "View draft" : "View PDF"}
       </a>
 
-      {/* Lock for signing — only on drafts */}
-      {isDraft && <LockForSigningButton documentId={doc.id} />}
+      {/* Lock for signing — only on drafts without attention required. The
+          endpoint also enforces this; this just keeps the UI consistent. */}
+      {isDraft && !needsAttention && <LockForSigningButton documentId={doc.id} />}
 
       {isPresentable && clientId && (
         <a href={`/app/clients/${clientId}/present?documentId=${doc.id}`} style={presentLinkStyle}>
@@ -751,6 +769,7 @@ function DocumentRow({ doc, clientId }) {
           Revoke
         </a>
       )}
+    </div>
     </div>
   );
 }
@@ -858,6 +877,186 @@ function LockForSigningButton({ documentId }) {
       {loading ? "Locking…" : "Lock for signing"}
     </button>
   );
+}
+
+/**
+ * AttentionBanner — surfaces an attorney-review-required flag on a
+ * document, with the dismiss action. Two reasons today:
+ *
+ *   client_submitted_intake — the draft came from the unauthenticated
+ *     send-link intake. Attorney must confirm contents before the document
+ *     can be locked. Dismissing the flag releases the draft for locking;
+ *     status stays "draft".
+ *
+ *   newer_poa_exists — this is an older POA, and a newer one was created
+ *     for the same client. Per Texas law, that does NOT by itself revoke
+ *     this POA. The attorney's choices are:
+ *       (a) execute a formal revocation instrument using the Revoke flow,
+ *       (b) dismiss this flag with a reason if the newer POA does NOT
+ *           replace this one.
+ *
+ * Sprint 6 (post-attorney-review correction).
+ */
+function AttentionBanner({ documentId, reason, status }) {
+  const [dismissing, setDismissing] = useState(false);
+  const [showDismiss, setShowDismiss] = useState(false);
+  const [dismissalReason, setDismissalReason] = useState("");
+
+  const copy = bannerCopyForReason(reason, status);
+
+  async function handleDismiss() {
+    setDismissing(true);
+    try {
+      const res = await fetch(`/api/documents/${documentId}/dismiss-attention`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dismissalReason }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.message || `Dismiss failed (${res.status})`);
+      }
+      if (typeof window !== "undefined") window.location.reload();
+    } catch (err) {
+      setDismissing(false);
+      if (typeof window !== "undefined") {
+        window.alert("Could not dismiss the flag: " + err.message);
+      }
+    }
+  }
+
+  return (
+    <div
+      style={{
+        background: "#FEF3C7",
+        border: "1px solid #FCD34D",
+        borderBottom: "none",
+        borderRadius: "7px 7px 0 0",
+        padding: "10px 14px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+      }}
+    >
+      <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+        <AlertTriangle size={14} strokeWidth={2} color="#92400E" style={{ marginTop: 2, flexShrink: 0 }} />
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 600, color: "#78350F", marginBottom: 2 }}>
+            {copy.title}
+          </div>
+          <div style={{ fontSize: 12, color: "#78350F", lineHeight: 1.45 }}>{copy.body}</div>
+        </div>
+        {!showDismiss && (
+          <button
+            type="button"
+            onClick={() => setShowDismiss(true)}
+            style={{
+              padding: "5px 10px",
+              background: TOKENS.PAPER,
+              color: "#78350F",
+              border: "1px solid #FCD34D",
+              borderRadius: 6,
+              fontSize: 11.5,
+              fontWeight: 600,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+            }}
+          >
+            {copy.dismissLabel}
+          </button>
+        )}
+      </div>
+      {showDismiss && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, paddingLeft: 22 }}>
+          <textarea
+            value={dismissalReason}
+            onChange={(e) => setDismissalReason(e.target.value)}
+            placeholder={copy.dismissPlaceholder}
+            rows={2}
+            style={{
+              fontSize: 12,
+              padding: "6px 8px",
+              border: `1px solid ${TOKENS.LINE}`,
+              borderRadius: 5,
+              fontFamily: FONTS.SANS,
+              resize: "vertical",
+            }}
+          />
+          <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+            <button
+              type="button"
+              onClick={() => {
+                setShowDismiss(false);
+                setDismissalReason("");
+              }}
+              style={{
+                padding: "5px 10px",
+                background: "transparent",
+                color: "#78350F",
+                border: "none",
+                borderRadius: 5,
+                fontSize: 11.5,
+                fontWeight: 500,
+                cursor: "pointer",
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleDismiss}
+              disabled={dismissing || !dismissalReason.trim()}
+              style={{
+                padding: "5px 10px",
+                background: TOKENS.INK,
+                color: TOKENS.PAPER,
+                border: "none",
+                borderRadius: 5,
+                fontSize: 11.5,
+                fontWeight: 600,
+                cursor: dismissing ? "wait" : "pointer",
+                opacity: !dismissalReason.trim() ? 0.5 : 1,
+              }}
+            >
+              {dismissing ? "Dismissing…" : "Confirm dismiss"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function bannerCopyForReason(reason, status) {
+  if (reason === "newer_poa_exists") {
+    return {
+      title: "Attorney review required: a newer POA was created for this client",
+      body:
+        "Under Texas law, a later durable POA does not by itself revoke an earlier one " +
+        "unless the new instrument expressly says so. To formally revoke this POA, use " +
+        "the Revoke flow. If the newer POA does NOT replace this one, dismiss this flag " +
+        "with a brief reason.",
+      dismissLabel: "Dismiss flag",
+      dismissPlaceholder: "Why doesn't the newer POA replace this one? (e.g., different scope)",
+    };
+  }
+  if (reason === "client_submitted_intake") {
+    return {
+      title: "Attorney review required before locking",
+      body:
+        "This draft was completed by the client via an intake link. Review the contents, " +
+        "then dismiss this flag to release the draft for locking.",
+      dismissLabel: "Mark as reviewed",
+      dismissPlaceholder: "Brief note about your review (optional but recommended).",
+    };
+  }
+  return {
+    title: "Attorney review required",
+    body: "This document is flagged for review before any further action.",
+    dismissLabel: "Dismiss",
+    dismissPlaceholder: "Reason for dismissing this flag.",
+  };
 }
 
 /**

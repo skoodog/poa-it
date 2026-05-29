@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock, Plus, Edit, Archive, RotateCcw, FileText, Shield, ShieldOff, Sparkles, MapPin, Mail, Send } from "lucide-react";
+import { Clock, Plus, Edit, Archive, RotateCcw, FileText, Shield, ShieldOff, Sparkles, MapPin, Mail, Send, AlertTriangle, Check } from "lucide-react";
 import { TOKENS, FONTS } from "../wizard/shared/tokens";
 
 /**
@@ -49,6 +49,11 @@ const EVENT_DISPLAY = {
   document_locked_for_signing: { icon: Shield, label: "Locked for signing", tone: "success" },
   intake_link_created: { icon: Send, label: "Intake link sent to client", tone: "info" },
   intake_link_extended: { icon: Send, label: "Intake link extended", tone: "neutral" },
+  // Sprint 6 (post-attorney-review correction): replacement detection +
+  // attorney-review-required client intake. The platform surfaces the
+  // situation; the legal call belongs to the attorney.
+  document_attention_required: { icon: AlertTriangle, label: "Attorney review required", tone: "warning" },
+  document_attention_dismissed: { icon: Check, label: "Attorney reviewed and dismissed flag", tone: "neutral" },
 };
 
 const TONE_COLORS = {
