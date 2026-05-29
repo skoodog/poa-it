@@ -96,6 +96,7 @@ export function Step2_Principal({ state, setState, onBack, onContinue }) {
           placeholder="MM/DD/YYYY"
           required
           type="text"
+          format="date"
           tooltip="Texas requires your date of birth on the document so banks and hospitals can confirm they're dealing with the right person."
           autoComplete="bday"
           error={touched.principalDob ? errors.principalDob : null}
@@ -153,10 +154,10 @@ export function Step2_Principal({ state, setState, onBack, onContinue }) {
           <FormField
             label="ZIP"
             value={state.principalZip}
-            onChange={(v) => updateField("principalZip", v.replace(/\D/g, "").slice(0, 5))}
+            onChange={(v) => updateField("principalZip", v)}
             placeholder="78704"
             required
-            maxLength={5}
+            format="zip"
             autoComplete="postal-code"
             error={touched.principalZip ? errors.principalZip : null}
           />
@@ -189,6 +190,7 @@ export function Step2_Principal({ state, setState, onBack, onContinue }) {
             placeholder="(512) 555-0142"
             required
             type="tel"
+            format="phone"
             autoComplete="tel"
             error={touched.principalPhone ? errors.principalPhone : null}
           />
@@ -273,9 +275,10 @@ function computeErrors(state) {
     errors.principalCity = "Please enter a valid city.";
   }
 
-  // ZIP: must be Texas
+  // ZIP: must be Texas. Accept "78704" or "78704-1234" (the smart formatter
+  // produces either depending on how many digits the user entered).
   if (state.principalZip) {
-    if (!/^\d{5}$/.test(state.principalZip)) {
+    if (!/^\d{5}(-\d{4})?$/.test(state.principalZip)) {
       errors.principalZip = "5-digit ZIP required.";
     } else if (!isTexasZip(state.principalZip)) {
       errors.principalZip = "This doesn't look like a Texas ZIP code.";

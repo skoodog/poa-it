@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { X, Loader2, AlertTriangle } from "lucide-react";
 import { TOKENS, FONTS } from "../wizard/shared/tokens";
+import { useSmartFormat } from "../../lib/formatting/smartFormat";
 
 /**
  * AddClientModal
@@ -30,6 +31,10 @@ export function AddClientModal({ open, onClose }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [duplicateCount, setDuplicateCount] = useState(0);
+
+  // Smart phone formatter — user types digits in any pattern, we display
+  // "(xxx) xxx-xxxx" with cursor preserved.
+  const phoneInput = useSmartFormat(phone, setPhone, "phone");
   const firstInputRef = useRef(null);
 
   // Reset on open
@@ -276,9 +281,11 @@ export function AddClientModal({ open, onClose }) {
                 optional
                 input={
                   <input
+                    ref={phoneInput.ref}
                     type="tel"
+                    inputMode="numeric"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={phoneInput.onChange}
                     placeholder="(512) 555-0123"
                     style={fieldInputStyle}
                     disabled={submitting}

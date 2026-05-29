@@ -226,10 +226,10 @@ export function Step3_Agent({ state, setState, onBack, onContinue }) {
           <FormField
             label="ZIP"
             value={state.agentZip}
-            onChange={(v) => updateField("agentZip", v.replace(/\D/g, "").slice(0, 5))}
+            onChange={(v) => updateField("agentZip", v)}
             placeholder="77001"
             required
-            maxLength={5}
+            format="zip"
             autoComplete="postal-code"
             error={touched.agentZip ? errors.agentZip : null}
           />
@@ -243,6 +243,7 @@ export function Step3_Agent({ state, setState, onBack, onContinue }) {
             placeholder="(713) 555-0142"
             required
             type="tel"
+            format="phone"
             autoComplete="tel"
             error={touched.agentPhone ? errors.agentPhone : null}
           />
@@ -376,10 +377,10 @@ export function Step3_Agent({ state, setState, onBack, onContinue }) {
                   <FormField
                     label="ZIP"
                     value={state.successorAgentZip}
-                    onChange={(v) => updateField("successorAgentZip", v.replace(/\D/g, "").slice(0, 5))}
+                    onChange={(v) => updateField("successorAgentZip", v)}
                     placeholder="75201"
                     required
-                    maxLength={5}
+                    format="zip"
                     autoComplete="postal-code"
                     error={touched.successorAgentZip ? errors.successorAgentZip : null}
                   />
@@ -392,6 +393,7 @@ export function Step3_Agent({ state, setState, onBack, onContinue }) {
                     placeholder="(214) 555-0142"
                     required
                     type="tel"
+                    format="phone"
                     error={touched.successorAgentPhone ? errors.successorAgentPhone : null}
                   />
                   <FormField
@@ -464,7 +466,7 @@ function computeErrors(state, showSuccessor) {
   }
 
   // ZIP — 5 digits, any state
-  if (state.agentZip && !/^\d{5}$/.test(state.agentZip)) {
+  if (state.agentZip && !/^\d{5}(-\d{4})?$/.test(state.agentZip)) {
     errors.agentZip = "5-digit ZIP required.";
   }
 
@@ -503,7 +505,7 @@ function computeErrors(state, showSuccessor) {
     if (state.successorAgentCity && state.successorAgentCity.trim().length < 2) {
       errors.successorAgentCity = "Please enter a valid city.";
     }
-    if (state.successorAgentZip && !/^\d{5}$/.test(state.successorAgentZip)) {
+    if (state.successorAgentZip && !/^\d{5}(-\d{4})?$/.test(state.successorAgentZip)) {
       errors.successorAgentZip = "5-digit ZIP required.";
     }
     if (state.successorAgentPhone) {

@@ -20,6 +20,7 @@ import { TopBar } from "./TopBar";
 import { ClientStatusBadge } from "./ClientStatusBadge";
 import { DocumentStatusBadge } from "./DocumentStatusBadge";
 import { ActivityTimeline } from "./ActivityTimeline";
+import { useSmartFormat } from "../../lib/formatting/smartFormat";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { getPresentationStatusDisplay } from "../../lib/taxonomy/poaTaxonomy";
 import { TOKENS, FONTS } from "../wizard/shared/tokens";
@@ -45,6 +46,8 @@ export function ClientProfileView({ client, auditEvents, documents, wizardSessio
   const [name, setName] = useState(client.name || "");
   const [email, setEmail] = useState(client.email || "");
   const [phone, setPhone] = useState(client.phone || "");
+  // Smart phone formatter — pasted/typed digits format as "(xxx) xxx-xxxx".
+  const phoneInput = useSmartFormat(phone, setPhone, "phone");
   const [relationship, setRelationship] = useState(client.relationship || "");
   const [notes, setNotes] = useState(client.notes || "");
   const [status, setStatus] = useState(client.status || "intake");
@@ -292,9 +295,11 @@ export function ClientProfileView({ client, auditEvents, documents, wizardSessio
               optional
               input={
                 <input
+                  ref={phoneInput.ref}
                   type="tel"
+                  inputMode="numeric"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={phoneInput.onChange}
                   disabled={saving}
                   style={fieldStyle}
                 />

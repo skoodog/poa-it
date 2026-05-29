@@ -3,6 +3,10 @@
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { TOKENS, FONTS } from "./shared/tokens";
 import { WIZARD_STEPS } from "../../lib/wizard/state";
+import {
+  BlockingHighlightProvider,
+  useBlockingHighlightControls,
+} from "./shared/BlockingHighlight";
 
 /**
  * WizardShell
@@ -26,7 +30,18 @@ import { WIZARD_STEPS } from "../../lib/wizard/state";
  *   continueLabel     — defaults to "Continue"
  *   hideNavigation    — for screens with custom CTAs
  */
-export function WizardShell({
+export function WizardShell(props) {
+  // Outer wrapper provides the BlockingHighlight context to every field
+  // rendered as children, AND to the Continue button below (which lives
+  // inside the inner component so it can call the controls hook).
+  return (
+    <BlockingHighlightProvider>
+      <WizardShellInner {...props} />
+    </BlockingHighlightProvider>
+  );
+}
+
+function WizardShellInner({
   children,
   stepId,
   stepNumber,
@@ -38,6 +53,23 @@ export function WizardShell({
   continueLabel = "Continue",
   hideNavigation = false,
 }) {
+  const { show: showBlocking, reset: resetBlocking } = useBlockingHighlightControls();
+
+  function handleContinueClick() {
+    if (!canContinue) {
+      // Loud signal: paint every required-empty/error field amber.
+      showBlocking();
+      if (typeof document !== "undefined") {
+        const target = document.querySelector('[data-blocking-target="true"]');
+        if (target?.scrollIntoView) {
+          target.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }
+      return;
+    }
+    resetBlocking();
+    onContinue?.();
+  }
   return (
     <div style={{ maxWidth: 720, margin: "0 auto", padding: "40px 32px 80px", fontFamily: FONTS.SANS }}>
       {/* Step header */}
@@ -124,8 +156,7 @@ export function WizardShell({
             <div />
           )}
           <button
-            onClick={onContinue}
-            disabled={!canContinue}
+            onClick={handleContinueClick}
             style={{
               padding: "12px 22px",
               fontSize: 14,
@@ -134,7 +165,11 @@ export function WizardShell({
               color: TOKENS.PAPER,
               border: "none",
               borderRadius: 7,
-              cursor: canContinue ? "pointer" : "not-allowed",
+              // Always clickable. When invalid, the click triggers the
+              // amber highlight on blockers rather than silently doing
+              // nothing — that's what Rob means by "greying out isn't
+              // enough." The visual still communicates the muted state.
+              cursor: "pointer",
               display: "inline-flex",
               alignItems: "center",
               gap: 8,

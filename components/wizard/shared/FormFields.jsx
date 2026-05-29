@@ -3,17 +3,34 @@
 import { useState } from "react";
 import { StatutoryTooltip } from "./StatutoryTooltip";
 import { TOKENS, FONTS } from "./tokens";
+import { useSmartFormat } from "../../../lib/formatting/smartFormat";
+import { useBlockingHighlight } from "./BlockingHighlight";
 
 /**
  * Shared form components for the wizard.
  *
- * FormField — text input with label, optional tooltip, optional error
- * SelectField — dropdown with the same shape
- * RadioGroup — vertical list of mutually-exclusive options
+ * FormField — text input with label, optional tooltip, optional error,
+ *   optional smart formatting (phone, zip, date, ein, ssn), and automatic
+ *   blocking highlight via BlockingHighlight context.
+ * SelectField — dropdown with the same shape + blocking highlight.
+ * RadioGroup — vertical list of mutually-exclusive options.
  *
- * All three log field changes to audit via the onChange callback if a
- * sessionId is provided. Validation errors render inline below the field.
+ * Smart formatting: pass `format="phone"` (or zip/date/ein/ssn) to make the
+ * field accept any input and progressively format the display. The user
+ * never sees a format mismatch; they type, the field formats. See
+ * lib/formatting/smartFormat.js for details and cursor behavior.
+ *
+ * Blocking highlight: when a parent BlockingHighlightProvider has been
+ * triggered (because the user tried to advance past invalid input), any
+ * field that is (required && empty) OR (has an error) renders with a
+ * saturated amber border + tinted background so the user can see exactly
+ * what's holding them up. No caller wiring required — just `required`.
  */
+
+// Strong amber highlight tokens — used when a field is blocking advance.
+const BLOCK_BG = "rgba(254, 243, 199, 0.5)";   // amber-100 @ 50%
+const BLOCK_BORDER = "#F59E0B";                // amber-500
+const BLOCK_SHADOW = "0 0 0 3px rgba(245, 158, 11, 0.18)";
 
 export function FormField({
   label,
@@ -29,11 +46,40 @@ export function FormField({
   onTooltipOpen,
   autoComplete,
   disabled = false,
+  format = null, // "phone" | "zip" | "date" | "ein" | "ssn" | null
 }) {
   const [focused, setFocused] = useState(false);
+  const showBlocking = useBlockingHighlight();
+  const { ref, onChange: smartChange } = useSmartFormat(value, onChange, format);
+
+  // A field is "blocking" if it has a validation error OR it's required and
+  // empty. The highlight only renders when the user has tried to advance
+  // (showBlocking is true), so we don't shout at the user before they've
+  // had a chance to fill anything in.
+  const isBlocking = !disabled && (error || (required && !value));
+  const showBlockHighlight = showBlocking && isBlocking;
+
+  // Borders and backgrounds prioritize: blocking-highlight > error > focus > default.
+  const borderColor = showBlockHighlight
+    ? BLOCK_BORDER
+    : error
+    ? TOKENS.ERR_BORDER
+    : focused
+    ? TOKENS.INK
+    : TOKENS.LINE;
+  const background = disabled
+    ? TOKENS.PAPER_2
+    : showBlockHighlight
+    ? BLOCK_BG
+    : TOKENS.PAPER;
+  const boxShadow = showBlockHighlight
+    ? BLOCK_SHADOW
+    : focused
+    ? `0 0 0 3px rgba(10,10,10,0.05)`
+    : "none";
 
   return (
-    <div>
+    <div data-blocking-target={showBlockHighlight ? "true" : undefined}>
       <label
         style={{
           display: "flex",
@@ -57,9 +103,16 @@ export function FormField({
         )}
       </label>
       <input
+        ref={ref}
         type={type}
         value={value || ""}
         onChange={(e) => {
+          // If a format is set, useSmartFormat handles the change (it
+          // formats, then forwards the formatted value to onChange).
+          if (format) {
+            smartChange(e);
+            return;
+          }
           let v = e.target.value;
           if (maxLength) v = v.slice(0, maxLength);
           onChange(v);
@@ -69,18 +122,25 @@ export function FormField({
         placeholder={placeholder}
         autoComplete={autoComplete}
         disabled={disabled}
+        // For formatted fields, give the keyboard a hint on mobile.
+        inputMode={
+          format === "phone" || format === "zip" || format === "date" ||
+          format === "ein" || format === "ssn"
+            ? "numeric"
+            : undefined
+        }
         style={{
           width: "100%",
           padding: "11px 14px",
           fontSize: 14,
           fontFamily: FONTS.SANS,
           color: TOKENS.INK,
-          background: disabled ? TOKENS.PAPER_2 : TOKENS.PAPER,
-          border: `1px solid ${error ? TOKENS.ERR_BORDER : focused ? TOKENS.INK : TOKENS.LINE}`,
+          background,
+          border: `${showBlockHighlight ? "2px" : "1px"} solid ${borderColor}`,
           borderRadius: 7,
           outline: "none",
-          transition: "border-color 0.15s",
-          boxShadow: focused ? `0 0 0 3px rgba(10,10,10,0.05)` : "none",
+          transition: "border-color 0.15s, background-color 0.15s",
+          boxShadow,
         }}
       />
       {error && (
@@ -113,9 +173,31 @@ export function SelectField({
   disabled = false,
 }) {
   const [focused, setFocused] = useState(false);
+  const showBlocking = useBlockingHighlight();
+
+  const isBlocking = !disabled && (error || (required && !value));
+  const showBlockHighlight = showBlocking && isBlocking;
+
+  const borderColor = showBlockHighlight
+    ? BLOCK_BORDER
+    : error
+    ? TOKENS.ERR_BORDER
+    : focused
+    ? TOKENS.INK
+    : TOKENS.LINE;
+  const background = disabled
+    ? TOKENS.PAPER_2
+    : showBlockHighlight
+    ? BLOCK_BG
+    : TOKENS.PAPER;
+  const boxShadow = showBlockHighlight
+    ? BLOCK_SHADOW
+    : focused
+    ? `0 0 0 3px rgba(10,10,10,0.05)`
+    : "none";
 
   return (
-    <div>
+    <div data-blocking-target={showBlockHighlight ? "true" : undefined}>
       <label
         style={{
           display: "flex",
@@ -150,13 +232,13 @@ export function SelectField({
           fontSize: 14,
           fontFamily: FONTS.SANS,
           color: value ? TOKENS.INK : TOKENS.INK_40,
-          background: disabled ? TOKENS.PAPER_2 : TOKENS.PAPER,
-          border: `1px solid ${error ? TOKENS.ERR_BORDER : focused ? TOKENS.INK : TOKENS.LINE}`,
+          background,
+          border: `${showBlockHighlight ? "2px" : "1px"} solid ${borderColor}`,
           borderRadius: 7,
           outline: "none",
-          transition: "border-color 0.15s",
+          transition: "border-color 0.15s, background-color 0.15s",
           cursor: disabled ? "not-allowed" : "pointer",
-          boxShadow: focused ? `0 0 0 3px rgba(10,10,10,0.05)` : "none",
+          boxShadow,
           appearance: "none",
           backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2371717A' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
           backgroundRepeat: "no-repeat",
