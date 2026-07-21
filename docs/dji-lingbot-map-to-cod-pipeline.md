@@ -33,7 +33,10 @@ precedent). File references are `path:line` into the repo.
    single-map shooter a months-scale indie project. COD-grade *multiplayer netcode* (lag
    compensation, 60 Hz servers) and COD-grade *content* are the expensive parts. Never copy COD
    assets/animations/sounds/names — those are protected. Rename the guns; model the loadout from
-   public-domain military manuals.
+   public-domain military manuals. **Downscope escape hatch (§5): mirroring CS:GO instead of COD
+   cuts the gunplay system to 2–4 weeks (hitscan + spray tables + buy menu) and — because
+   Dust2-class bomb-defusal maps are nearly all exterior with fixed spawns — fits an aerial-scan
+   map far better than COD's interior-heavy three-lane respawn design.**
 
 **The honest minimal path:** Mini 4 Pro (or Mavic 3E) → automated grid flight (DroneDeploy/Litchi
 Pilot/Pilot 2, zero custom code) → LingBot-Map on the live RTMP feed as an **in-flight 3D coverage
@@ -228,7 +231,31 @@ Store or commission — never rip from COD.
 
 ---
 
-## 5. Effort and cost summary
+## 5. Downscope option: CS:GO-style instead of COD-style (recommended)
+
+Mirroring CS:GO rather than modern COD removes most of the game-side cost — and it happens to fit
+an aerial-scan pipeline better than COD does:
+
+| Dimension | COD-style (above) | CS:GO-style downscope |
+|---|---|---|
+| Ballistics | Projectiles w/ velocity + drop | **Hitscan** line-traces + material penetration — the textbook case; Valve's published lag-compensation paper is the reference implementation |
+| Gun feel | Per-gun ADS/sprint-out ms, attachment matrices | **Deterministic spray patterns as data tables** (the AK curve), first-shot + movement inaccuracy, tagging slowdown, armor/headshot multipliers |
+| Loadout | Gunsmith, attachments, perks, progression | **Buy menu = your "basic milspec loadout" verbatim**: rifle, sidearm, HE/flash/smoke, kevlar + helmet, defuse kit; ~8–12 weapons covers the whole game |
+| Movement | Tac-sprint, slide-cancel, mantle, ADS | No ADS (sniper zoom only), Source-style movement with counter-strafe feel — open-source UE5 reimplementations exist (Project Borealis movement plugin) |
+| Mode/spawns | Respawn modes → spawn-flow logic (hard) | Round-based bomb defusal → **fixed spawns**; the hardest map-design problem disappears |
+| Map demands | Three-lane flow, enterable interiors | **Dust2-class maps are ~all exterior** — streets, courtyards, low cover, minimal interiors — i.e. exactly what a drone scan produces; scan → two bombsites + mid ≈ playable |
+| Netcode bar | 12+ players, respawn churn | 5v5, round-based; lag comp still needed for ranked feel, but bots-first v1 plays fine without it |
+
+Effort swing: the gunplay/loadout system drops from months to **2–4 weeks** (hitscan traces, spray
+tables, buy menu, round-state machine), and map editorialization roughly halves. The "upgraded
+experience" is then presentation, where your pipeline already shines: Nanite/Lumen on the scanned
+mesh (or a splat visual layer), modern HRTF audio, high-tickrate responsiveness — CS2's formula, on
+maps you flew yourself. Legal posture unchanged: mechanics are free to mirror; don't copy Valve's
+assets, names, or the expressed layout of Dust2 et al.; still rename real guns.
+
+---
+
+## 6. Effort and cost summary
 
 | Workstream | Effort | Cost |
 |---|---|---|
@@ -240,6 +267,7 @@ Store or commission — never rip from COD.
 | **TSDF meshing + metric-scale + export stage** on top of repo's Open3D/NPZ/GLB scaffolding | **1–2 weeks** | free |
 | Custom MSDK v5 Android app (only if you outgrow zero-code missions/streaming) | 2–6 weeks minimal; 3–6 months robust | free (DJI dev account) |
 | UE5 + Lyra prototype: your mesh + collision + navmesh + one tuned COD-stat weapon set, bots | 1–2 months (solo, experienced) | free tier |
+| — CS:GO-style downscope instead (§5): hitscan + spray tables + buy menu + bomb-defusal round loop | 2–4 weeks | free tier |
 | Map editorialization (blockout, interiors, cover, spawns) | 1–2 months per map | asset packs $ |
 | Milspec weapon/character art, animation, audio | buy packs (days) → or months custom | $100s–$1,000s in packs |
 | COD-grade MP netcode (server rewind, dedicated servers, anti-cheat) | 6–12+ dev-months | server hosting ongoing |
